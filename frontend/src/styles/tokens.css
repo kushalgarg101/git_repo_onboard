@@ -1,0 +1,53 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+:root {
+  /* Color Palette - Abstract / Soft Developer Theme (Zinc-based) */
+  --cg-bg-0: #09090b;
+  /* zinc-950 */
+  --cg-bg-1: #18181b;
+  /* zinc-900 */
+  --cg-bg-2: #27272a;
+  /* zinc-800 */
+
+  /* Panels */
+  --cg-panel: rgba(24, 24, 27, 0.65);
+  /* translucent zinc-900 */
+  --cg-panel-strong: rgba(9, 9, 11, 0.85);
+  --cg-glass-blur: 16px;
+  --cg-panel-border: rgba(255, 255, 255, 0.08);
+  /* subtle frosted glass border */
+  --cg-panel-border-glow: rgba(255, 255, 255, 0.02);
+
+  /* Typography & Core Colors */
+  --cg-text: #f4f4f5;
+  /* zinc-50 */
+  --cg-muted: #a1a1aa;
+  /* zinc-400 */
+
+  /* Accents */
+  --cg-accent: #a1a1aa;
+  /* Soft muted accent, changes to text on hover typically */
+  --cg-accent-hover: #ffffff;
+  --cg-accent-glow: rgba(255, 255, 255, 0.1);
+
+  --cg-info: #38bdf8;
+  --cg-success: #4ade80;
+  --cg-error: #f87171;
+  --cg-warning: #fbbf24;
+
+  /* Layout & Spacing */
+  --cg-radius-lg: 12px;
+  --cg-radius-md: 8px;
+  --cg-radius-sm: 6px;
+
+  --cg-space-1: 6px;
+  --cg-space-2: 12px;
+  --cg-space-3: 18px;
+  --cg-space-4: 24px;
+  --cg-space-5: 36px;
+
+  /* Effects */
+  --cg-shadow-deep: 0 10px 40px rgba(0, 0, 0, 0.5);
+  --cg-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --cg-transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}

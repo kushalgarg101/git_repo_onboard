@@ -1,0 +1,129 @@
+/* CLI Terminal Motion & Interaction */
+
+.cg-panel,
+.cg-viewport-panel,
+.cg-tabs button,
+.cg-btn-outline,
+.cg-analyze-btn {
+  transition: var(--cg-transition);
+}
+
+/* Hover Elevations Removed for Terminal aesthetic, focusing on border glow */
+.cg-panel:hover {
+  transform: none;
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.1);
+}
+
+/* Tab Interactions */
+.cg-tabs button:hover:not(.active) {
+  background: var(--cg-text);
+  color: var(--cg-bg-0);
+  transform: none;
+}
+
+.cg-tabs button.active {
+  background: var(--cg-accent) !important;
+  color: var(--cg-bg-0) !important;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+/* CLI Text Type-in Effect */
+@keyframes type-in {
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 100%;
+  }
+}
+
+@keyframes cursor-blink {
+
+  0%,
+  100% {
+    border-right-color: transparent
+  }
+
+  50% {
+    border-right-color: var(--cg-accent);
+  }
+}
+
+.cg-data-list li,
+.search-result-item,
+.path-step {
+  overflow: hidden;
+  white-space: nowrap;
+  animation:
+    type-in 0.4s steps(40, end) both,
+    cursor-blink .75s step-end infinite;
+  border-right: 8px solid transparent;
+}
+
+.cg-data-list li:nth-child(1) {
+  animation-delay: 0.1s, 0.1s;
+}
+
+.cg-data-list li:nth-child(2) {
+  animation-delay: 0.3s, 0.3s;
+}
+
+.cg-data-list li:nth-child(3) {
+  animation-delay: 0.5s, 0.5s;
+}
+
+.cg-data-list li:nth-child(4) {
+  animation-delay: 0.7s, 0.7s;
+}
+
+.cg-data-list li:nth-child(5) {
+  animation-delay: 0.9s, 0.9s;
+}
+
+/* Status Toast Log message popup */
+.cg-toast {
+  animation: log-pop 0.2s steps(2, end);
+}
+
+@keyframes log-pop {
+  0% {
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+
+  100% {
+    transform: scaleY(1);
+    transform-origin: top;
+  }
+}
+
+/* Scrollbar Styling - Blocky */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--cg-bg-1);
+  border-left: 1px dashed var(--cg-panel-border);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--cg-muted);
+  border-radius: 0;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--cg-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
