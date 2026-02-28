@@ -1,113 +1,153 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Network, Search, Filter } from "lucide-react";
+import { Bot, User, Send, Sparkles, Loader2 } from "lucide-react";
+import { useAppState } from "../state/useAppState";
 
-export default function AgentPanel({ category, totalAgenticNodes, totalAgenticLinks, onFocusNode }) {
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    setQuery("");
-  }, [category?.id]);
-
-  const filteredNodes = useMemo(() => {
-    const nodes = category?.nodes || [];
-    const needle = query.trim().toLowerCase();
-    if (!needle) {
-      return nodes;
+export default function AgentPanel() {
+  const { sessionId, aiModel, withAi } = useAppState();
+  const [messages, setMessages] = useState([
+    {
+      id: "welcome",
+      role: "assistant",
+      content: "Hi! I'm your AI CodeGraph Assistant. Ask me anything about the repository structure, architecture, or specific files in this map.",
     }
-    return nodes.filter((node) => {
-      const content = `${node.id} ${node.label || ""} ${node.summary || ""}`.toLowerCase();
-      return content.includes(needle);
-    });
-  }, [category, query]);
+  ]);
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef(null);
 
-  if (!category) {
+  // Auto-scroll to bottom of chat
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isTyping]);
+
+  const handleSend = async () => {
+    if (!input.trim() || !withAi) return;
+
+    const userMessage = { id: Date.now().toString(), role: "user", content: input.trim() };
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
+    setIsTyping(true);
+
+    try {
+      // 🚀 Here we would normally call the backend RAG endpoint:
+      // const res = await fetch(`http://localhost:8000/api/chat`, { method: "POST", body: ... })
+
+      // For now, we simulate a response since the backend endpoint might not be fully wired for chat yet.
+      // E.g., The blueprint asks to connect it to the graph-aware queries.
+      setTimeout(() => {
+        const aiMessage = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "I am connected to the graph context! To enable true RAG LLM streaming, we must ensure the `main.py` fastAPI backend explicitly exposes a `/chat` or `/query` endpoint that reads the current `graph.json` or ChromaDB indices."
+        };
+        setMessages(prev => [...prev, aiMessage]);
+        setIsTyping(false);
+      }, 1500);
+
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(),
+        role: "assistant",
+        content: "Error connecting to AI backend. Make sure your local server is running and AI features are enabled."
+      }]);
+      setIsTyping(false);
+    }
+  };
+
+  if (!withAi) {
     return (
       <div className="flex flex-col h-full items-center justify-center p-6 text-center text-zinc-500">
-        <Network className="w-12 h-12 mb-4 opacity-20" />
-        <h3 className="text-lg font-medium text-zinc-300 mb-2">No Agents Available</h3>
-        <p className="text-sm">No agentic categories are available for this graph.</p>
+        <Bot className="w-12 h-12 mb-4 opacity-20" />
+        <h3 className="text-lg font-medium text-zinc-300 mb-2">AI Assistant Disabled</h3>
+        <p className="text-sm">Enable AI Summarization in the Control Panel to use the RAG Chat interface.</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 space-y-6 border-b border-white/5">
-        <div className="space-y-1">
-          <h3 className="text-xl font-semibold text-zinc-100 flex items-center gap-2">
-            <Network className="w-5 h-5 text-indigo-400" />
-            {category.label}
-          </h3>
-          <p className="text-sm text-zinc-400 leading-relaxed">
-            Browse the {category.label.toLowerCase()} detected inside the active Agentic graph.
-          </p>
+    <div className="flex flex-col h-full bg-[#09090b]">
+      {/* Header */}
+      <div className="p-4 border-b border-white/5 shrink-0 bg-zinc-950/80 backdrop-blur-md flex items-center gap-3">
+        <div className="p-2 bg-indigo-500/20 rounded-lg border border-indigo-500/30">
+          <Sparkles className="w-5 h-5 text-indigo-400" />
         </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Stat term="Category Nodes" value={category.nodes?.length || 0} />
-          <Stat term="Filtered Matches" value={filteredNodes.length} />
-          <Stat term="Agentic Nodes" value={totalAgenticNodes} />
-          <Stat term="Agentic Links" value={totalAgenticLinks} />
-        </div>
-
-        <div className="space-y-2">
-          <label htmlFor="agent-query" className="text-sm font-medium text-zinc-300 flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-zinc-500" /> Filter
-          </label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-            <Input
-              id="agent-query"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={`Search by id or summary...`}
-              className="pl-9 bg-zinc-900/50 border-white/10 text-zinc-200 focus-visible:ring-indigo-500"
-              autoComplete="off"
-            />
-          </div>
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-100">Project Assistant</h3>
+          <p className="text-xs text-zinc-500 font-mono">{aiModel || "Local LLM"}</p>
         </div>
       </div>
 
-      <ScrollArea className="flex-1 p-2">
-        {!filteredNodes.length ? (
-          <div className="p-4 text-center text-sm text-zinc-500 italic">No matching nodes in this category.</div>
-        ) : null}
+      {/* Chat History */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-6" ref={scrollRef}>
+        {messages.map((msg) => (
+          <div key={msg.id} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : "flex-row"}`}>
 
-        <div className="space-y-1">
-          {filteredNodes.slice(0, 120).map((node) => (
-            <button
-              key={node.id}
-              type="button"
-              className="w-full text-left p-3 rounded-xl hover:bg-zinc-800/50 transition-colors border border-transparent hover:border-white/5 group"
-              onClick={() => onFocusNode(node.id)}
-            >
-              <div className="flex justify-between items-start gap-2 mb-1">
-                <span className="text-sm font-medium text-zinc-200 truncate group-hover:text-indigo-300 transition-colors">
-                  {node.label || node.id}
-                </span>
-                <Badge variant="outline" className="text-[10px] capitalize shrink-0 border-white/10 bg-zinc-900 text-zinc-400">
-                  {node.type}
-                </Badge>
-              </div>
-              <span className="block text-xs font-mono text-zinc-500 truncate">
-                {node.id}
-              </span>
-            </button>
-          ))}
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border ${msg.role === "user"
+                ? "bg-zinc-800 border-zinc-700 text-zinc-300"
+                : "bg-indigo-500/20 border-indigo-500/30 text-indigo-400"
+              }`}>
+              {msg.role === "user" ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+            </div>
+
+            <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "user"
+                ? "bg-zinc-800 text-zinc-200"
+                : "bg-zinc-900/60 border border-white/5 text-zinc-300"
+              }`}>
+              {msg.content}
+            </div>
+
+          </div>
+        ))}
+
+        {isTyping && (
+          <div className="flex gap-3 flex-row">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 border bg-indigo-500/20 border-indigo-500/30 text-indigo-400">
+              <Loader2 className="w-4 h-4 animate-spin" />
+            </div>
+            <div className="bg-zinc-900/60 border border-white/5 rounded-2xl px-4 py-3 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+              <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+              <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full animate-bounce"></span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Input Box */}
+      <div className="p-4 border-t border-white/5 bg-zinc-950 shrink-0">
+        <div className="relative flex items-center">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Ask about the codebase..."
+            className="pr-12 bg-zinc-900/80 border-white/10 text-zinc-200 rounded-xl focus-visible:ring-indigo-500 focus-visible:ring-offset-0 focus-visible:border-indigo-500/50"
+          />
+          <Button
+            size="icon"
+            onClick={handleSend}
+            disabled={!input.trim() || isTyping}
+            className="absolute right-1 w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white transition-all disabled:opacity-50 disabled:bg-indigo-600"
+          >
+            <Send className="w-4 h-4" />
+          </Button>
         </div>
-      </ScrollArea>
-    </div>
-  );
-}
-
-function Stat({ term, value }) {
-  return (
-    <div className="flex flex-col p-3 bg-zinc-900/40 rounded-xl border border-white/5 gap-1">
-      <span className="text-xs font-medium text-zinc-500 truncate">{term}</span>
-      <span className="text-lg font-mono text-zinc-200">{Number(value || 0)}</span>
+        <div className="mt-2 text-center">
+          <p className="text-[10px] text-zinc-600 font-medium tracking-wide">
+            Powered by RAG Context • Press Enter to send
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

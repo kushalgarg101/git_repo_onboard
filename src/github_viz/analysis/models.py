@@ -25,6 +25,7 @@ class Node:
     line_count: int = 0
     contributors: int = 0
     last_modified: str = ""
+    content: str = ""
     meta: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:

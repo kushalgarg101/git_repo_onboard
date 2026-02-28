@@ -29,6 +29,7 @@ class ParsedFile:
     complexity: int
     size: int
     line_count: int
+    content: str = ""
 
 
 _LANGUAGE_BY_SUFFIX = {
@@ -70,6 +71,7 @@ def parse_file(path: pathlib.Path) -> ParsedFile:
         complexity=complexity,
         size=len(code),
         line_count=_count_lines(code),
+        content=code,
     )
 
 

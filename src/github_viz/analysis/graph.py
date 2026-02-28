@@ -160,6 +160,7 @@ def _build_file_node(parsed, node_id: str, group: str, label: str) -> Node:
         group=group,
         label=label,
         line_count=parsed.line_count,
+        content=parsed.content,
     )
 
 
@@ -174,6 +175,7 @@ def _build_symbol_node(parsed, node_id: str, node_type: NodeType, group: str, la
         group=group,
         label=label,
         line_count=parsed.line_count,
+        content=parsed.content,
     )
 
 

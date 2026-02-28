@@ -21,6 +21,10 @@ export default function ControlPanel({
   onAnalyze,
   busy,
   graph,
+  showImports,
+  onShowImportsChange,
+  showCalls,
+  onShowCallsChange,
 }) {
   const aiValidation = validateAiConfig({
     withAi,
@@ -145,6 +149,34 @@ export default function ControlPanel({
             )}
           </div>
         )}
+
+        {/* 🎛️ Graph Filters */}
+        <div className="space-y-4 pt-4 border-t border-white/10">
+          <Label className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Graph Visualization</Label>
+
+
+          <div className="flex items-center space-x-2">
+            <input
+              id="show-imports"
+              type="checkbox"
+              checked={showImports}
+              onChange={(event) => onShowImportsChange(event.target.checked)}
+              className="w-4 h-4 rounded border-zinc-700 bg-zinc-900 text-indigo-500 focus:ring-indigo-500"
+            />
+            <Label htmlFor="show-imports" className="text-sm text-zinc-300 cursor-pointer">Show Imports</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <input
+              id="show-calls"
+              type="checkbox"
+              checked={showCalls}
+              onChange={(event) => onShowCallsChange(event.target.checked)}
+              className="w-4 h-4 rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-amber-500"
+            />
+            <Label htmlFor="show-calls" className="text-sm text-zinc-300 cursor-pointer">Show Calls & USES</Label>
+          </div>
+        </div>
+
       </CardContent>
 
       <CardFooter className="flex-col gap-4 border-t border-white/10 pt-4 bg-zinc-950/40">

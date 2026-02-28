@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AgentPanel from "./components/AgentPanel";
+import CodeModal from "./components/CodeModal";
 import ControlPanel from "./components/ControlPanel";
 import NodePanel from "./components/NodePanel";
 import PathPanel from "./components/PathPanel";
@@ -65,6 +66,23 @@ export default function App() {
     clearPath,
   } = useAppState();
 
+  // 🎛️ Interaction State for Blueprint Features
+  const [hoveredNodeId, setHoveredNodeId] = useState(null);
+  const [showImports, setShowImports] = useState(true);
+  const [showCalls, setShowCalls] = useState(true);
+
+  // 🖥️ Floating Code Modal
+  const [codeModalNode, setCodeModalNode] = useState(null);
+
+  // Close modal on Escape key
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === "Escape") setCodeModalNode(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   const { categories: agentCategories, agenticGraph } = useMemo(
     () => deriveAgenticModel(graph),
     [graph]
@@ -90,7 +108,7 @@ export default function App() {
     [activeContext, searchResults]
   );
 
-  const handleFocusNode = (nodeId, context = activeContext) => {
+  const handleFocusNode = useCallback((nodeId, context = "code") => {
     if (context === "code") {
       setActiveContext("code");
       setActiveCodeTab("node");
@@ -98,7 +116,13 @@ export default function App() {
       setActiveContext("agents");
     }
     setSelectedNodeId(nodeId);
-  };
+
+    // Open the floating code modal
+    if (context === "code" && activeGraph?.nodes) {
+      const node = activeGraph.nodes.find((n) => n.id === nodeId);
+      if (node) setCodeModalNode(node);
+    }
+  }, [activeGraph, setSelectedNodeId]);
 
   const handleSetPathFrom = (nodeId) => {
     setPathFromId(nodeId);
@@ -146,6 +170,10 @@ export default function App() {
           onAnalyze={startRemoteAnalysis}
           busy={busy}
           graph={graph}
+          showImports={showImports}
+          onShowImportsChange={setShowImports}
+          showCalls={showCalls}
+          onShowCallsChange={setShowCalls}
         />
 
         <section className="flex-1 relative flex flex-col min-w-0 z-10">
@@ -180,14 +208,24 @@ export default function App() {
                   <TreeMap
                     graph={activeGraph}
                     selectedNodeId={selectedNodeId}
-                    onSelectNode={setSelectedNodeId}
+                    onSelectNode={(id) => {
+                      if (id) handleFocusNode(id, "code");
+                      else setSelectedNodeId(null);
+                    }}
                   />
                 )}
                 {viewMode === "topology" && (
                   <TopologyGraph
                     graph={activeGraph}
                     selectedNodeId={selectedNodeId}
-                    onSelectNode={setSelectedNodeId}
+                    onSelectNode={(id) => {
+                      if (id) handleFocusNode(id, "code");
+                      else setSelectedNodeId(null);
+                    }}
+                    hoveredNodeId={hoveredNodeId}
+                    onHoverNode={setHoveredNodeId}
+                    showImports={showImports}
+                    showCalls={showCalls}
                   />
                 )}
               </>
@@ -209,6 +247,9 @@ export default function App() {
               <span className="text-zinc-100 font-medium tracking-wide">Running analysis...</span>
             </div>
           ) : null}
+
+          {/* 🖥️ Floating Code Modal */}
+          <CodeModal node={codeModalNode} onClose={() => setCodeModalNode(null)} />
         </section>
 
         <aside className="w-[400px] flex flex-col bg-zinc-950/80 backdrop-blur-xl border-l border-white/10 shadow-[-8px_0_32px_-8px_rgba(0,0,0,0.5)] z-20">

@@ -4,10 +4,33 @@ import * as d3 from "d3";
 const MAX_NODES = 350;
 const MAX_LINKS = 1000;
 
-export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
+// 🎨 A rich 20-color vibrant palette for maximum variety
+const VIBRANT_PALETTE = [
+  "#f94144", "#f3722c", "#f8961e", "#f9844a", "#f9c74f",
+  "#90be6d", "#43aa8b", "#4d908e", "#577590", "#277da1",
+  "#e63946", "#a8dadc", "#457b9d", "#1d3557", "#ff6b6b",
+  "#c084fc", "#818cf8", "#38bdf8", "#34d399", "#fbbf24",
+];
+const colorScale = d3.scaleOrdinal(VIBRANT_PALETTE);
+
+export default function TopologyGraph({
+  graph,
+  selectedNodeId,
+  onSelectNode,
+  hoveredNodeId,
+  onHoverNode,
+  showImports,
+  showCalls
+}) {
   const containerRef = useRef(null);
   const zoomBehaviorRef = useRef(null); // 🎥 Save D3 zoom behavior
   const svgRef = useRef(null); // 🎥 Save SVG reference
+
+  // ⚡ Keep latest callbacks without triggering re-renders of the massive D3 setup
+  const callbacksRef = useRef({ onSelectNode, onHoverNode });
+  useEffect(() => {
+    callbacksRef.current = { onSelectNode, onHoverNode };
+  }, [onSelectNode, onHoverNode]);
 
   useEffect(() => {
     if (!containerRef.current || !graph?.nodes?.length) return undefined;
@@ -21,7 +44,7 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
     const nodes = [...graph.nodes]
       .sort((a, b) => Number(b.complexity || 0) - Number(a.complexity || 0))
       .slice(0, MAX_NODES)
-      .map((node) => ({ ...node }));
+      .map((node) => ({ ...node, degree: 0 }));
 
     const nodeIds = new Set(nodes.map((node) => node.id));
     const links = (graph.links || [])
@@ -62,7 +85,7 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
     // Handle double click to reset zoom
     svg.on("dblclick.zoom", null); // disable default
     svg.on("dblclick", () => {
-      onSelectNode(null);
+      if (callbacksRef.current.onSelectNode) callbacksRef.current.onSelectNode(null);
       svg.transition().duration(750)
         .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.8).translate(-width / 2, -height / 2));
     });
@@ -83,9 +106,7 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
       .data(links)
       .join("path")
       .attr("fill", "none")
-      .attr("stroke", (d) =>
-        linkEndpointId(d.source) === selectedNodeId ? "rgba(45, 212, 191, 0.9)" : "rgba(100, 116, 139, 0.25)"
-      )
+      .attr("stroke", "rgba(100, 116, 139, 0.25)")
       .attr("stroke-width", 1)
       .attr("stroke-dasharray", "none");
 
@@ -98,7 +119,13 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
       .attr("class", "cg-topology-node cursor-pointer")
       .on("click", (event, d) => {
         event.stopPropagation();
-        onSelectNode(d.id);
+        if (callbacksRef.current.onSelectNode) callbacksRef.current.onSelectNode(d.id);
+      })
+      .on("mouseenter", (event, d) => {
+        if (callbacksRef.current.onHoverNode) callbacksRef.current.onHoverNode(d.id);
+      })
+      .on("mouseleave", () => {
+        if (callbacksRef.current.onHoverNode) callbacksRef.current.onHoverNode(null);
       })
       .call(drag(simulation));
 
@@ -167,42 +194,56 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
     containerRef.current.__simulation = simulation;
 
     return () => simulation.stop();
-  }, [graph, onSelectNode]); // 🛑 Removed selectedNodeId so the physics map doesn't rebuild / shuffle on click
+  }, [graph]); // 🛑 ONLY redraw when the core graph data changes, NEVER on hover/select
 
-  // 🎨 Separate effect just for updating visual highlights & CAMERA ZOOM
+  // 🎛️ FILTER EFFECT (Dynamic Edge Removal based on Type)
   useEffect(() => {
-    if (!containerRef.current || !svgRef.current || !zoomBehaviorRef.current) return;
+    if (!containerRef.current || !svgRef.current || !graph?.links) return;
     const svg = svgRef.current;
-    const zoom = zoomBehaviorRef.current;
-    const container = containerRef.current;
+
+    // Smoothly hide/show links based on active toggles
+    svg.selectAll(".cg-topology-links path")
+      .style("display", (d) => {
+        const type = (d.type || "").toLowerCase();
+        if (type === "imports" && !showImports) return "none";
+        if ((type === "calls" || type === "uses") && !showCalls) return "none";
+        return "inline";
+      });
+  }, [showImports, showCalls, graph]);
+
+  // 🎨 HIGHLIGHT & HOVER EFFECT (Real-time visual updates)
+  useEffect(() => {
+    if (!containerRef.current || !svgRef.current) return;
+    const svg = svgRef.current;
+
+    // Use hoveredNodeId if active, fallback to selectedNodeId
+    const activeId = hoveredNodeId || selectedNodeId;
 
     // 1. Calculate connected node IDs
     const connectedNodeIds = new Set();
-    let targetNodeData = null;
 
-    if (selectedNodeId && graph?.links) {
+    if (activeId && graph?.links) {
       for (const link of graph.links) {
+        // Only count connections if the link is currently visible through filters
+        const type = (link.type || "").toLowerCase();
+        if (type === "imports" && !showImports) continue;
+        if ((type === "calls" || type === "uses") && !showCalls) continue;
+
         const sourceId = linkEndpointId(link.source);
         const targetId = linkEndpointId(link.target);
-        if (sourceId === selectedNodeId) connectedNodeIds.add(targetId);
-        if (targetId === selectedNodeId) connectedNodeIds.add(sourceId);
-      }
-
-      // Attempt to find the node data for zooming
-      const simulation = container.__simulation;
-      if (simulation) {
-        targetNodeData = simulation.nodes().find(n => n.id === selectedNodeId);
+        if (sourceId === activeId) connectedNodeIds.add(targetId);
+        if (targetId === activeId) connectedNodeIds.add(sourceId);
       }
     }
 
     const isLinkActive = (d) => {
       const sourceId = linkEndpointId(d.source);
       const targetId = linkEndpointId(d.target);
-      return sourceId === selectedNodeId || targetId === selectedNodeId;
+      return sourceId === activeId || targetId === activeId;
     };
 
     const isNodeActive = (id) => {
-      return id === selectedNodeId || connectedNodeIds.has(id);
+      return id === activeId || connectedNodeIds.has(id);
     };
 
     // Update visuals
@@ -216,74 +257,68 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
       .attr("stroke-dasharray", (d) => isLinkActive(d) ? "4,4" : "none");
 
     svg.selectAll(".cg-topology-node circle")
-      // Primary selected is white, connected are their normal color but bright
-      .attr("fill", (d) => d.id === selectedNodeId ? "#ffffff" : nodeFill(d, null))
-      // Add heavy white stroke to selected, soft white stroke to connected
+      // Primary active is white, connected are their normal color
+      .attr("fill", (d) => d.id === activeId ? "#ffffff" : nodeFill(d, null))
       .attr("stroke", (d) => {
-        if (d.id === selectedNodeId) return "#ffffff";
+        if (d.id === activeId) return "#ffffff";
         if (connectedNodeIds.has(d.id)) return "rgba(255, 255, 255, 0.6)";
         return "rgba(255, 255, 255, 0.1)";
       })
-      .attr("stroke-width", (d) => d.id === selectedNodeId ? 2.5 : (connectedNodeIds.has(d.id) ? 1.5 : 1))
-      // Glow the active cluster, turn off others
+      .attr("stroke-width", (d) => d.id === activeId ? 2.5 : (connectedNodeIds.has(d.id) ? 1.5 : 1))
       .style("filter", (d) => isNodeActive(d.id) ? "url(#glow)" : "none")
-      // Fade out inactive nodes
       .style("opacity", (d) => {
-        if (!selectedNodeId) return 1; // No selection = fully visible
+        if (!activeId) return 1; // No active focus = fully visible
         return isNodeActive(d.id) ? 1 : 0.25;
       });
 
     svg.selectAll(".cg-topology-node text")
       .style("opacity", (d) => {
-        if (!selectedNodeId) return 0.6; // Base opacity
+        if (!activeId) return 0.6; // Base opacity
         return isNodeActive(d.id) ? 1 : 0.15;
       });
 
-    // 🎥 2. CAMERA ZOOM
-    if (targetNodeData && targetNodeData.x !== undefined && targetNodeData.y !== undefined) {
-      const width = Math.max(container.clientWidth, 640);
-      const height = Math.max(container.clientHeight, 440);
-
-      // Calculate transform to center on the target node with a nice 1.8x scale
-      const scale = 1.8;
-      const transform = d3.zoomIdentity
-        .translate(width / 2, height / 2)
-        .scale(scale)
-        .translate(-targetNodeData.x, -targetNodeData.y);
-
-      // Transition the SVG pan/zoom
-      svg.transition()
-        .duration(850)
-        .ease(d3.easeCubicOut)
-        .call(zoom.transform, transform);
-    }
-
-  }, [selectedNodeId, graph]);
+  }, [selectedNodeId, hoveredNodeId, graph, showImports, showCalls]);
 
   return (
     <div className="absolute inset-0 z-0 h-full w-full">
       <div className="absolute inset-0" ref={containerRef} />
       <div className="absolute bottom-6 left-6 flex items-center gap-4 px-4 py-2 rounded-full bg-zinc-900/60 backdrop-blur-md border border-white/10 shadow-lg pointer-events-none z-10 text-xs font-medium text-zinc-300 select-none">
-        <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.6)]" />File</span>
-        <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.6)]" />Class</span>
-        <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]" />Function</span>
+        <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full" style={{ background: colorScale("src") }} />Core UI</span>
+        <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full" style={{ background: colorScale("components") }} />Components</span>
+        <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full" style={{ background: colorScale("api") }} />Backend/API</span>
         <div className="w-px h-3 bg-white/20 mx-1"></div>
-        <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(251, 146, 60, 0.95)" }} />Selected</span>
+        <span className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-full" style={{ background: "rgba(255, 255, 255, 0.95)" }} />Selected Focus</span>
       </div>
     </div>
   );
 }
 
 function nodeRadius(node) {
-  return Math.max(5, Math.min(14, Math.log2((node.line_count || 1) + 6) * 1.8));
+  const lines = node.line_count || 1;
+  return Math.max(5, Math.min(35, 4 + Math.sqrt(lines) * 0.6));
 }
 
 function nodeFill(node, selectedNodeId) {
-  if (node.id === selectedNodeId) return "#ffffff"; // White
-  if (node.type === "class") return "#06b6d4"; // Cyan-500
-  if (node.type === "function") return "#f59e0b"; // Amber-500
-  if (node.type === "file") return "#a855f7"; // Purple-500
-  return "#94a3b8"; // Slate-400
+  if (node.id === selectedNodeId) return "#ffffff"; // White for active
+
+  // Use parent directory as the color key for fine-grained variety
+  const id = String(node.id || "");
+  const parts = id.split("/");
+
+  // Get parent directory for finer grouping (e.g. "components/charts" instead of just "src")
+  let colorKey;
+  if (parts.length >= 3) {
+    // Use last two directory segments, e.g. "components/charts"
+    colorKey = parts.slice(-3, -1).join("/");
+  } else if (parts.length === 2) {
+    colorKey = parts[0];
+  } else {
+    // For root-level files, use the file extension
+    const ext = id.split(".").pop() || "other";
+    colorKey = "root-" + ext;
+  }
+
+  return colorScale(colorKey);
 }
 
 function linkEndpointId(endpoint) {
