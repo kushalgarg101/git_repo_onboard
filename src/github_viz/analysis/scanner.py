@@ -165,15 +165,19 @@ def _download_zipball(repo_url: str, target_dir: pathlib.Path) -> None:
     owner, repo = match.groups()
     zip_url = f"https://api.github.com/repos/{owner}/{repo}/zipball/main"
     
-    headers = {}
+    headers = {
+        "User-Agent": "AgenticCodeGraph/1.0 (https://github.com/kushalgarg101/git_repo_onboard)"
+    }
     token = os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_PAT")
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
+    logger.info("Attempting ZIP download from %s", zip_url)
     response = requests.get(zip_url, headers=headers, timeout=30)
     # If main fails, try master as a fallback
     if response.status_code == 404:
         zip_url = f"https://api.github.com/repos/{owner}/{repo}/zipball/master"
+        logger.info("Retrying ZIP download from %s", zip_url)
         response = requests.get(zip_url, headers=headers, timeout=30)
     
     response.raise_for_status()

@@ -114,7 +114,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         
         # On Vercel, we must run synchronously because background threads are killed
         # once the response is sent, and in-memory state is not shared between polls.
-        if os.environ.get("VERCEL") or os.environ.get("VERCEL_REGION"):
+        is_vercel = os.environ.get("VERCEL") or os.environ.get("VERCEL_REGION") or os.environ.get("VERCEL_ENV")
+        
+        if is_vercel:
             app.state.sessions.set_status(session_id, "running", "Analyzing (Vercel Sync Mode)")
             try:
                 # Perform analysis in the main request thread
@@ -129,8 +131,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 graph["meta"]["session_id"] = session_id
 
                 # Bundle stats directly into the graph meta to prevent extra fetch on Vercel
-                from github_viz.analysis.stats import calculate_graph_stats
-                stats = calculate_graph_stats(graph["nodes"], graph["links"])
+                stats = compute_stats(graph)
                 graph["meta"]["stats"] = stats
 
                 app.state.sessions.set_graph(session_id, graph)
