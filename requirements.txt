@@ -1,0 +1,10 @@
+# Core dependencies for Agentic Code Graph
+fastapi>=0.111
+pydantic>=2.7
+requests>=2.32
+rich>=13.7
+typer>=0.12
+uvicorn>=0.30
+python-multipart
+# Add the project itself in editable mode or ensure src is in path
+# Vercel handles the source code in the deployment

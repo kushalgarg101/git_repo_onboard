@@ -1,0 +1,21 @@
+{
+    "version": 2,
+    "rewrites": [
+        {
+            "source": "/analyze/(.*)",
+            "destination": "/api/index.py"
+        },
+        {
+            "source": "/graph/(.*)",
+            "destination": "/api/index.py"
+        },
+        {
+            "source": "/health",
+            "destination": "/api/index.py"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/frontend/dist/$1"
+        }
+    ]
+}
