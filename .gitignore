@@ -12,9 +12,11 @@ wheels/
 
 # Python tooling caches
 .pytest_cache/
+.pytest_tmp/
 .mypy_cache/
 .ruff_cache/
 .tox/
+.tmp/
 
 # Node / frontend artifacts
 frontend/node_modules/
