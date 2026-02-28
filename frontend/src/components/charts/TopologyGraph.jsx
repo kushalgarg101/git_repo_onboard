@@ -1,110 +1,127 @@
-import { useEffect, useRef } from 'react';
-import * as d3 from 'd3';
+import { useEffect, useRef } from "react";
+import * as d3 from "d3";
+
+const MAX_NODES = 350;
+const MAX_LINKS = 1000;
 
 export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
-    const containerRef = useRef(null);
+  const containerRef = useRef(null);
 
-    useEffect(() => {
-        if (!containerRef.current || !graph || !graph.nodes.length) return;
+  useEffect(() => {
+    if (!containerRef.current || !graph?.nodes?.length) return undefined;
 
-        const container = containerRef.current;
-        container.innerHTML = '';
+    const container = containerRef.current;
+    container.innerHTML = "";
 
-        // Use container dimensions, with a fallback
-        const width = container.clientWidth || 800;
-        const height = container.clientHeight || 600;
+    const width = Math.max(container.clientWidth, 640);
+    const height = Math.max(container.clientHeight, 440);
 
-        // CRITICAL FIX: Ensure all links connect to existing nodes to prevent D3 crashes
-        const nodeIds = new Set(graph.nodes.map(n => n.id));
-        const validLinks = graph.links.filter(l => nodeIds.has(l.source) && nodeIds.has(l.target));
+    const nodes = [...graph.nodes]
+      .sort((a, b) => Number(b.complexity || 0) - Number(a.complexity || 0))
+      .slice(0, MAX_NODES)
+      .map((node) => ({ ...node }));
 
-        // Deep clone data to avoid mutating global state
-        const nodes = graph.nodes.map(d => ({ ...d }));
-        const links = validLinks.map(d => ({ ...d }));
+    const nodeIds = new Set(nodes.map((node) => node.id));
+    const links = (graph.links || [])
+      .filter((link) => nodeIds.has(link.source) && nodeIds.has(link.target))
+      .slice(0, MAX_LINKS)
+      .map((link) => ({ ...link }));
 
-        const svg = d3.select(container)
-            .append('svg')
-            .attr('width', '100%')
-            .attr('height', '100%')
-            .attr('viewBox', [0, 0, width, height])
-            .style('display', 'block')
-            .call(d3.zoom().on('zoom', (event) => {
-                g.attr('transform', event.transform);
-            }));
+    const svg = d3
+      .select(container)
+      .append("svg")
+      .attr("viewBox", [0, 0, width, height])
+      .attr("width", "100%")
+      .attr("height", "100%")
+      .attr("class", "cg-topology-svg");
 
-        const g = svg.append('g');
+    const stage = svg.append("g");
 
-        const simulation = d3.forceSimulation(nodes)
-            .force('link', d3.forceLink(links).id(d => d.id).distance(140).strength(0.6))
-            .force('charge', d3.forceManyBody().strength(-400))
-            .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(45));
+    const zoom = d3.zoom().scaleExtent([0.35, 3]).on("zoom", (event) => {
+      stage.attr("transform", event.transform);
+    });
 
-        const link = g.append('g')
-            .selectAll('line')
-            .data(links)
-            .join('line')
-            .attr('stroke-width', 1.5)
-            .attr('stroke', d => {
-                const isRelated = d.source.id === selectedNodeId || d.target.id === selectedNodeId;
-                return isRelated ? 'var(--cg-accent)' : 'rgba(255, 255, 255, 0.05)';
-            })
-            .attr('stroke-opacity', d => (d.source.id === selectedNodeId || d.target.id === selectedNodeId) ? 1 : 0.4);
+    svg.call(zoom);
 
-        const node = g.append('g')
-            .selectAll('g')
-            .data(nodes)
-            .join('g')
-            .attr('cursor', 'pointer')
-            .on('click', (event, d) => onSelectNode(d.id));
+    const simulation = d3
+      .forceSimulation(nodes)
+      .force("link", d3.forceLink(links).id((d) => d.id).distance(82).strength(0.36))
+      .force("charge", d3.forceManyBody().strength(-155))
+      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("collide", d3.forceCollide().radius((d) => nodeRadius(d) + 7));
 
-        // "Zen-Cyber" 2D Node Aesthetic
-        node.append('rect')
-            .attr('width', 10)
-            .attr('height', 10)
-            .attr('x', -5)
-            .attr('y', -5)
-            .attr('rx', 2)
-            .attr('fill', d => d.id === selectedNodeId ? 'var(--cg-accent)' : 'var(--cg-info)')
-            .style('filter', d => d.id === selectedNodeId ? 'drop-shadow(0 0 6px var(--cg-accent-glow))' : 'none');
+    const link = stage
+      .append("g")
+      .attr("class", "cg-topology-links")
+      .selectAll("line")
+      .data(links)
+      .join("line")
+      .attr("stroke", (d) =>
+        linkEndpointId(d.source) === selectedNodeId || linkEndpointId(d.target) === selectedNodeId
+          ? "rgba(142, 197, 232, 0.92)"
+          : "rgba(89, 120, 147, 0.34)"
+      )
+      .attr("stroke-width", (d) =>
+        linkEndpointId(d.source) === selectedNodeId || linkEndpointId(d.target) === selectedNodeId ? 1.7 : 1.0
+      );
 
-        node.append('text')
-            .attr('x', 12)
-            .attr('y', 4)
-            .attr('fill', d => d.id === selectedNodeId ? 'var(--cg-text)' : 'var(--cg-muted)')
-            .style('font-size', '11px')
-            .style('font-weight', d => d.id === selectedNodeId ? 'bold' : 'normal')
-            .style('pointer-events', 'none')
-            .text(d => d.label);
+    const node = stage
+      .append("g")
+      .attr("class", "cg-topology-nodes")
+      .selectAll("g")
+      .data(nodes)
+      .join("g")
+      .attr("class", "cg-topology-node")
+      .on("click", (_, d) => onSelectNode(d.id));
 
-        simulation.on('tick', () => {
-            link
-                .attr('x1', d => d.source.x)
-                .attr('y1', d => d.source.y)
-                .attr('x2', d => d.target.x)
-                .attr('y2', d => d.target.y);
+    node
+      .append("circle")
+      .attr("r", (d) => nodeRadius(d))
+      .attr("fill", (d) => nodeFill(d, selectedNodeId))
+      .attr("stroke", "rgba(230, 245, 255, 0.6)")
+      .attr("stroke-width", 0.8);
 
-            node.attr('transform', d => `translate(${d.x},${d.y})`);
-        });
+    node
+      .append("text")
+      .attr("x", (d) => nodeRadius(d) + 6)
+      .attr("y", 3)
+      .text((d) => d.label || d.id)
+      .attr("class", "cg-topology-label");
 
-        // Initial warm-up
-        for (let i = 0; i < 40; ++i) simulation.tick();
+    simulation.on("tick", () => {
+      link
+        .attr("x1", (d) => linkEndpointCoord(d.source, "x"))
+        .attr("y1", (d) => linkEndpointCoord(d.source, "y"))
+        .attr("x2", (d) => linkEndpointCoord(d.target, "x"))
+        .attr("y2", (d) => linkEndpointCoord(d.target, "y"));
 
-        return () => simulation.stop();
-    }, [graph, selectedNodeId, onSelectNode]);
+      node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+    });
 
-    return (
-        <div
-            className="cg-topology-container"
-            ref={containerRef}
-            style={{
-                width: '100%',
-                height: '100%',
-                background: 'rgba(5, 7, 12, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-            }}
-        />
-    );
+    return () => simulation.stop();
+  }, [graph, onSelectNode, selectedNodeId]);
+
+  return <div className="cg-topology-container" ref={containerRef} />;
+}
+
+function nodeRadius(node) {
+  return Math.max(3.2, Math.min(9.6, Math.log2((node.line_count || 1) + 6) * 1.1));
+}
+
+function nodeFill(node, selectedNodeId) {
+  if (node.id === selectedNodeId) return "rgba(251, 146, 60, 0.95)";
+  if (node.type === "class") return "rgba(52, 211, 153, 0.86)";
+  if (node.type === "function") return "rgba(245, 158, 11, 0.86)";
+  return "rgba(56, 189, 248, 0.84)";
+}
+
+function linkEndpointId(endpoint) {
+  return typeof endpoint === "object" ? endpoint.id : endpoint;
+}
+
+function linkEndpointCoord(endpoint, axis) {
+  if (typeof endpoint === "object" && typeof endpoint[axis] === "number") {
+    return endpoint[axis];
+  }
+  return 0;
 }

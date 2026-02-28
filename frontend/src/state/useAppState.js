@@ -9,6 +9,9 @@ export function useAppState() {
   const [repoUrl, setRepoUrl] = useState("");
   const [granularity, setGranularity] = useState("files");
   const [withAi, setWithAi] = useState(false);
+  const [aiApiKey, setAiApiKey] = useState("");
+  const [aiBaseUrl, setAiBaseUrl] = useState("");
+  const [aiModel, setAiModel] = useState("");
 
   const [sessionId, setSessionId] = useState(getSessionFromUrl());
   const [analysisState, setAnalysisState] = useState("idle");
@@ -70,8 +73,20 @@ export function useAppState() {
           setStatusMessage(error.message || "Unable to load graph stats");
         }
 
-        setStatusTone("success");
-        setStatusMessage("Graph loaded");
+        const aiSummary = graphData?.meta?.ai_summary;
+        if (aiSummary?.status === "completed" && Number(aiSummary.summarized_files || 0) > 0) {
+          setStatusTone("success");
+          setStatusMessage(`Graph loaded with ${aiSummary.summarized_files} AI summaries`);
+        } else if (aiSummary?.status === "skipped") {
+          setStatusTone("warning");
+          setStatusMessage("Graph loaded (AI summaries skipped: provide API key or local endpoint)");
+        } else if (aiSummary?.status === "error") {
+          setStatusTone("warning");
+          setStatusMessage(`Graph loaded (AI summaries failed: ${aiSummary.detail || "unknown error"})`);
+        } else {
+          setStatusTone("success");
+          setStatusMessage("Graph loaded");
+        }
       } catch (error) {
         setStatusTone("error");
         setStatusMessage(error.message || "Unable to load graph");
@@ -102,6 +117,11 @@ export function useAppState() {
         granularity,
         withAi,
         languages: DEFAULT_LANGUAGES,
+        ai: {
+          api_key: aiApiKey.trim() || undefined,
+          base_url: aiBaseUrl.trim() || undefined,
+          model: aiModel.trim() || undefined,
+        },
       });
       setSessionAndUrl(analysis.id, setSessionId);
       setPathResult(null);
@@ -125,7 +145,7 @@ export function useAppState() {
     } finally {
       setBusy(false);
     }
-  }, [granularity, loadSession, repoUrl, withAi]);
+  }, [aiApiKey, aiBaseUrl, aiModel, granularity, loadSession, repoUrl, withAi]);
 
   const runSearch = useCallback(
     async (query) => {
@@ -177,6 +197,12 @@ export function useAppState() {
     setGranularity,
     withAi,
     setWithAi,
+    aiApiKey,
+    setAiApiKey,
+    aiBaseUrl,
+    setAiBaseUrl,
+    aiModel,
+    setAiModel,
     sessionId,
     analysisState,
     analysisDetail,

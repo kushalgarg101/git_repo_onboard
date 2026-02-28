@@ -8,7 +8,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE || "";
 const DEFAULT_TIMEOUT_MS = 45000;
 
-export async function startAnalyze({ repoUrl, granularity, withAi, languages }) {
+export async function startAnalyze({ repoUrl, granularity, withAi, languages, ai }) {
   return requestJSON("/analyze", {
     method: "POST",
     body: JSON.stringify({
@@ -16,6 +16,7 @@ export async function startAnalyze({ repoUrl, granularity, withAi, languages }) 
       granularity,
       with_ai: withAi,
       languages,
+      ai: withAi ? ai || null : null,
     }),
   });
 }

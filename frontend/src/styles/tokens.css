@@ -1,53 +1,46 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 
 :root {
-  /* Color Palette - Abstract / Soft Developer Theme (Zinc-based) */
-  --cg-bg-0: #09090b;
-  /* zinc-950 */
-  --cg-bg-1: #18181b;
-  /* zinc-900 */
-  --cg-bg-2: #27272a;
-  /* zinc-800 */
+  --cg-font-ui: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  --cg-font-mono: "IBM Plex Mono", "Consolas", monospace;
 
-  /* Panels */
-  --cg-panel: rgba(24, 24, 27, 0.65);
-  /* translucent zinc-900 */
-  --cg-panel-strong: rgba(9, 9, 11, 0.85);
-  --cg-glass-blur: 16px;
-  --cg-panel-border: rgba(255, 255, 255, 0.08);
-  /* subtle frosted glass border */
-  --cg-panel-border-glow: rgba(255, 255, 255, 0.02);
+  --cg-bg-0: #070d17;
+  --cg-bg-1: #0c1727;
+  --cg-bg-2: #12253d;
 
-  /* Typography & Core Colors */
-  --cg-text: #f4f4f5;
-  /* zinc-50 */
-  --cg-muted: #a1a1aa;
-  /* zinc-400 */
+  --cg-panel: rgba(10, 20, 34, 0.74);
+  --cg-panel-strong: rgba(8, 16, 29, 0.9);
+  --cg-panel-border: rgba(137, 182, 214, 0.2);
+  --cg-panel-border-strong: rgba(194, 227, 245, 0.34);
 
-  /* Accents */
-  --cg-accent: #a1a1aa;
-  /* Soft muted accent, changes to text on hover typically */
-  --cg-accent-hover: #ffffff;
-  --cg-accent-glow: rgba(255, 255, 255, 0.1);
+  --cg-text: #e8f2ff;
+  --cg-muted: #9ab3cb;
 
+  --cg-accent: #2dd4bf;
+  --cg-accent-strong: #14b8a6;
   --cg-info: #38bdf8;
-  --cg-success: #4ade80;
+  --cg-success: #34d399;
+  --cg-warning: #f59e0b;
   --cg-error: #f87171;
-  --cg-warning: #fbbf24;
+  --cg-path: #fb923c;
 
-  /* Layout & Spacing */
-  --cg-radius-lg: 12px;
-  --cg-radius-md: 8px;
-  --cg-radius-sm: 6px;
+  --cg-radius-xl: 18px;
+  --cg-radius-lg: 14px;
+  --cg-radius-md: 10px;
+  --cg-radius-sm: 7px;
 
   --cg-space-1: 6px;
-  --cg-space-2: 12px;
-  --cg-space-3: 18px;
-  --cg-space-4: 24px;
-  --cg-space-5: 36px;
+  --cg-space-2: 10px;
+  --cg-space-3: 14px;
+  --cg-space-4: 18px;
+  --cg-space-5: 24px;
+  --cg-space-6: 32px;
 
-  /* Effects */
-  --cg-shadow-deep: 0 10px 40px rgba(0, 0, 0, 0.5);
-  --cg-shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  --cg-transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  --cg-shadow-lg: 0 28px 64px rgba(0, 4, 11, 0.48);
+  --cg-shadow-md: 0 18px 38px rgba(0, 6, 16, 0.4);
+  --cg-shadow-sm: 0 8px 18px rgba(0, 8, 18, 0.32);
+  --cg-border-glow: 0 0 0 1px rgba(209, 240, 255, 0.08);
+
+  --cg-transition-fast: 150ms ease;
+  --cg-transition-normal: 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }

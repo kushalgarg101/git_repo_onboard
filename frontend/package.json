@@ -10,9 +10,12 @@
   },
   "dependencies": {
     "d3": "^7.9.0",
+    "d3-force-3d": "^3.0.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "three": "^0.165.0"
+    "react-force-graph-3d": "^1.29.1",
+    "react-use-measure": "^2.1.7",
+    "three": "^0.183.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

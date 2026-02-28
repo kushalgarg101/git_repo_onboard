@@ -1,125 +1,52 @@
-/* CLI Terminal Motion & Interaction */
-
 .cg-panel,
 .cg-viewport-panel,
-.cg-tabs button,
-.cg-btn-outline,
-.cg-analyze-btn {
-  transition: var(--cg-transition);
+.cg-tabs,
+.cg-toast,
+.cg-status-capsule {
+  animation: cg-fade-up 320ms cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
-/* Hover Elevations Removed for Terminal aesthetic, focusing on border glow */
-.cg-panel:hover {
-  transform: none;
-  box-shadow: 0 0 10px rgba(0, 255, 65, 0.1);
+.spinner {
+  animation: cg-spin 900ms linear infinite;
 }
 
-/* Tab Interactions */
-.cg-tabs button:hover:not(.active) {
-  background: var(--cg-text);
-  color: var(--cg-bg-0);
-  transform: none;
+.cg-status-capsule.state-pending .status-dot,
+.cg-status-capsule.state-running .status-dot {
+  animation: cg-pulse 1200ms ease-in-out infinite;
 }
 
-.cg-tabs button.active {
-  background: var(--cg-accent) !important;
-  color: var(--cg-bg-0) !important;
-  font-weight: 700;
-  box-shadow: none;
-}
-
-/* CLI Text Type-in Effect */
-@keyframes type-in {
+@keyframes cg-fade-up {
   from {
-    width: 0;
+    opacity: 0;
+    transform: translateY(6px);
   }
 
   to {
-    width: 100%;
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-@keyframes cursor-blink {
+@keyframes cg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
+@keyframes cg-pulse {
   0%,
   100% {
-    border-right-color: transparent
+    transform: scale(1);
+    opacity: 1;
   }
 
   50% {
-    border-right-color: var(--cg-accent);
+    transform: scale(1.35);
+    opacity: 0.58;
   }
-}
-
-.cg-data-list li,
-.search-result-item,
-.path-step {
-  overflow: hidden;
-  white-space: nowrap;
-  animation:
-    type-in 0.4s steps(40, end) both,
-    cursor-blink .75s step-end infinite;
-  border-right: 8px solid transparent;
-}
-
-.cg-data-list li:nth-child(1) {
-  animation-delay: 0.1s, 0.1s;
-}
-
-.cg-data-list li:nth-child(2) {
-  animation-delay: 0.3s, 0.3s;
-}
-
-.cg-data-list li:nth-child(3) {
-  animation-delay: 0.5s, 0.5s;
-}
-
-.cg-data-list li:nth-child(4) {
-  animation-delay: 0.7s, 0.7s;
-}
-
-.cg-data-list li:nth-child(5) {
-  animation-delay: 0.9s, 0.9s;
-}
-
-/* Status Toast Log message popup */
-.cg-toast {
-  animation: log-pop 0.2s steps(2, end);
-}
-
-@keyframes log-pop {
-  0% {
-    transform: scaleY(0);
-    transform-origin: top;
-  }
-
-  100% {
-    transform: scaleY(1);
-    transform-origin: top;
-  }
-}
-
-/* Scrollbar Styling - Blocky */
-::-webkit-scrollbar {
-  width: 12px;
-}
-
-::-webkit-scrollbar-track {
-  background: var(--cg-bg-1);
-  border-left: 1px dashed var(--cg-panel-border);
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--cg-muted);
-  border-radius: 0;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--cg-accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   *,
   *::before,
   *::after {

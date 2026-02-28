@@ -1,93 +1,114 @@
-import { useEffect, useRef } from 'react';
-import * as d3 from 'd3';
+import { useEffect, useRef } from "react";
+import * as d3 from "d3";
 
 export default function TreeMap({ graph, selectedNodeId, onSelectNode }) {
-    const containerRef = useRef(null);
+  const containerRef = useRef(null);
 
-    useEffect(() => {
-        if (!containerRef.current || !graph) return;
+  useEffect(() => {
+    if (!containerRef.current || !graph?.nodes?.length) return undefined;
 
-        const container = containerRef.current;
-        container.innerHTML = '';
-        const width = container.clientWidth;
-        const height = container.clientHeight;
+    const container = containerRef.current;
+    container.innerHTML = "";
 
-        // Transform flat graph to hierarchy
-        const rootData = { id: 'root', children: [] };
-        const nodeMap = new Map();
+    const width = Math.max(container.clientWidth, 640);
+    const height = Math.max(container.clientHeight, 440);
 
-        graph.nodes.forEach(node => {
-            const parts = node.id.split('/');
-            let current = rootData;
-            parts.forEach((part, i) => {
-                if (i === parts.length - 1) {
-                    current.children.push({ ...node, name: part });
-                } else {
-                    let found = current.children.find(c => c.name === part);
-                    if (!found) {
-                        found = { name: part, children: [] };
-                        current.children.push(found);
-                    }
-                    current = found;
-                }
-            });
+    const rootData = buildHierarchy(graph.nodes);
+
+    const root = d3
+      .hierarchy(rootData)
+      .sum((node) => Number(node.line_count || node.size || 1))
+      .sort((a, b) => (b.value || 0) - (a.value || 0));
+
+    d3
+      .treemap()
+      .size([width, height])
+      .paddingOuter(5)
+      .paddingTop(20)
+      .paddingInner(2)(root);
+
+    const svg = d3
+      .select(container)
+      .append("svg")
+      .attr("viewBox", [0, 0, width, height])
+      .attr("width", "100%")
+      .attr("height", "100%")
+      .attr("class", "cg-treemap-svg");
+
+    const leaves = svg
+      .append("g")
+      .attr("class", "cg-treemap-leaves")
+      .selectAll("g")
+      .data(root.leaves())
+      .join("g")
+      .attr("transform", (d) => `translate(${d.x0},${d.y0})`);
+
+    leaves
+      .append("rect")
+      .attr("width", (d) => Math.max(0, d.x1 - d.x0))
+      .attr("height", (d) => Math.max(0, d.y1 - d.y0))
+      .attr("fill", (d) => tileColor(d.data))
+      .attr("stroke", (d) => (d.data.id === selectedNodeId ? "rgba(248, 250, 252, 0.95)" : "rgba(148, 174, 196, 0.22)"))
+      .attr("stroke-width", (d) => (d.data.id === selectedNodeId ? 1.5 : 0.8))
+      .attr("class", "cg-treemap-tile")
+      .on("click", (_, d) => onSelectNode(d.data.id));
+
+    leaves
+      .append("text")
+      .attr("x", 5)
+      .attr("y", 15)
+      .attr("class", "cg-treemap-label")
+      .text((d) => ((d.x1 - d.x0 > 48 && d.y1 - d.y0 > 22) ? d.data.name : ""));
+
+    svg
+      .append("g")
+      .attr("class", "cg-treemap-groups")
+      .selectAll("text")
+      .data(root.descendants().filter((d) => d.depth > 0 && d.children))
+      .join("text")
+      .attr("x", (d) => d.x0 + 6)
+      .attr("y", (d) => d.y0 + 14)
+      .attr("class", "cg-treemap-group-label")
+      .text((d) => ((d.x1 - d.x0 > 70 ? d.data.name : "")));
+
+    return undefined;
+  }, [graph, onSelectNode, selectedNodeId]);
+
+  return <div className="cg-treemap-container" ref={containerRef} />;
+}
+
+function buildHierarchy(nodes) {
+  const root = { name: "root", children: [] };
+
+  for (const node of nodes) {
+    const parts = String(node.id || "unknown").split("/");
+    let cursor = root;
+
+    parts.forEach((part, index) => {
+      if (index === parts.length - 1) {
+        cursor.children.push({
+          ...node,
+          name: part,
         });
+        return;
+      }
 
-        const root = d3.hierarchy(rootData)
-            .sum(d => d.line_count || 1)
-            .sort((a, b) => b.value - a.value);
+      let existing = cursor.children.find((entry) => entry.name === part && entry.children);
+      if (!existing) {
+        existing = { name: part, children: [] };
+        cursor.children.push(existing);
+      }
+      cursor = existing;
+    });
+  }
 
-        d3.treemap()
-            .size([width, height])
-            .paddingOuter(4)
-            .paddingTop(20)
-            .paddingInner(1)
-            .round(true)(root);
+  return root;
+}
 
-        const svg = d3.select(container)
-            .append('svg')
-            .attr('width', width)
-            .attr('height', height)
-            .style('font-family', 'var(--cg-font-mono)')
-            .style('font-size', '10px');
+function tileColor(node) {
+  const churn = Number(node.churn || 0);
+  const issues = Number(node.issues || 0);
+  const stress = Math.min(1, (churn + issues * 7) / 120);
 
-        const leaf = svg.selectAll('g')
-            .data(root.leaves())
-            .join('g')
-            .attr('transform', d => `translate(${d.x0},${d.y0})`);
-
-        leaf.append('rect')
-            .attr('width', d => d.x1 - d.x0)
-            .attr('height', d => d.y1 - d.y0)
-            .attr('fill', d => {
-                if (d.data.id === selectedNodeId) return 'var(--cg-text)';
-                const churn = d.data.churn || 0;
-                return d3.interpolateRgb('rgba(39, 39, 42, 0.4)', 'rgba(248, 113, 113, 0.8)')(Math.min(1, churn / 50));
-            })
-            .attr('stroke', 'rgba(255, 255, 255, 0.1)')
-            .attr('cursor', 'pointer')
-            .on('click', (event, d) => onSelectNode(d.data.id));
-
-        leaf.append('text')
-            .attr('x', 4)
-            .attr('y', 14)
-            .attr('fill', 'var(--cg-text)')
-            .attr('pointer-events', 'none')
-            .text(d => (d.x1 - d.x0 > 40 && d.y1 - d.y0 > 20) ? d.data.name : '');
-
-        // Add titles for parent groups
-        svg.selectAll('text.parent')
-            .data(root.descendants().filter(d => d.depth > 0 && d.children))
-            .join('text')
-            .attr('class', 'parent')
-            .attr('x', d => d.x0 + 6)
-            .attr('y', d => d.y0 + 14)
-            .attr('fill', 'var(--cg-muted)')
-            .attr('font-size', '11px')
-            .attr('font-weight', 'bold')
-            .text(d => (d.x1 - d.x0 > 60) ? d.data.name : '');
-
-    }, [graph, selectedNodeId, onSelectNode]);
-
-    return <div className="cg-treemap-container" ref={containerRef} style={{ width: '100%', height: '100%', overflow: 'hidden' }} />;
+  return d3.interpolateRgb("rgba(29, 54, 74, 0.58)", "rgba(251, 146, 60, 0.84)")(stress);
 }

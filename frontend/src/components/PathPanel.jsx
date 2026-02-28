@@ -14,48 +14,48 @@ export default function PathPanel({
 }) {
   const nodeIds = useMemo(() => (graph?.nodes || []).map((node) => node.id), [graph]);
 
-  const useSelectedAsFrom = () => {
-    if (selectedNodeId) onFromChange(selectedNodeId);
-  };
-
-  const useSelectedAsTo = () => {
-    if (selectedNodeId) onToChange(selectedNodeId);
-  };
-
   return (
     <section className="cg-panel cg-path-panel">
       <h3>Path Finder</h3>
-      <p className="cg-muted" style={{ marginBottom: '20px', fontSize: '0.85rem' }}>Calculate the shortest relationship between two nodes.</p>
+      <p className="cg-panel-subtitle">Compute the shortest connection between two nodes.</p>
 
-      <div className="cg-path-inputs">
-        <div className="path-field">
-          <label>Starting Point</label>
-          <div className="cg-input-wrapper" style={{ position: 'relative' }}>
-            <input
-              value={fromId}
-              onChange={(event) => onFromChange(event.target.value)}
-              list="path-node-options"
-              placeholder="Search or select node..."
-            />
-            <button className="in-input-btn" onClick={useSelectedAsFrom} title="Use Selected" style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--cg-muted)' }}>
-              🎯
-            </button>
-          </div>
+      <div className="cg-field-group">
+        <label htmlFor="cg-path-from">Start Node</label>
+        <div className="cg-input-action-row">
+          <input
+            id="cg-path-from"
+            value={fromId}
+            onChange={(event) => onFromChange(event.target.value)}
+            list="path-node-options"
+            placeholder="Select or type node id"
+          />
+          <button
+            className="cg-input-action"
+            type="button"
+            onClick={() => selectedNodeId && onFromChange(selectedNodeId)}
+          >
+            Use selected
+          </button>
         </div>
+      </div>
 
-        <div className="path-field" style={{ marginTop: '12px' }}>
-          <label>Destination</label>
-          <div className="cg-input-wrapper" style={{ position: 'relative' }}>
-            <input
-              value={toId}
-              onChange={(event) => onToChange(event.target.value)}
-              list="path-node-options"
-              placeholder="Search or select node..."
-            />
-            <button className="in-input-btn" onClick={useSelectedAsTo} title="Use Selected" style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--cg-muted)' }}>
-              🎯
-            </button>
-          </div>
+      <div className="cg-field-group">
+        <label htmlFor="cg-path-to">End Node</label>
+        <div className="cg-input-action-row">
+          <input
+            id="cg-path-to"
+            value={toId}
+            onChange={(event) => onToChange(event.target.value)}
+            list="path-node-options"
+            placeholder="Select or type node id"
+          />
+          <button
+            className="cg-input-action"
+            type="button"
+            onClick={() => selectedNodeId && onToChange(selectedNodeId)}
+          >
+            Use selected
+          </button>
         </div>
       </div>
 
@@ -70,24 +70,18 @@ export default function PathPanel({
         type="button"
         onClick={() => onRunPath(fromId, toId)}
         disabled={!fromId || !toId || loading}
-        style={{ marginTop: '24px' }}
       >
         {loading ? "Calculating..." : "Find Path"}
       </button>
 
       {pathResult?.path?.length ? (
         <div className="cg-path-visualization">
-          <div className="path-meta">
-            <span>Distance: <strong>{pathResult.hops} hops</strong></span>
-          </div>
+          <div className="path-meta">Shortest route: {pathResult.hops} hops</div>
           <div className="path-stepper">
-            {pathResult.path.map((step, idx) => (
+            {pathResult.path.map((step, index) => (
               <div key={step} className="path-step">
-                <div className="step-indicator">
-                  <div className="dot" />
-                  {idx < pathResult.path.length - 1 && <div className="line" />}
-                </div>
-                <button className="step-btn mono" type="button" onClick={() => onFocusNode(step)} style={{ fontSize: '0.75rem' }}>
+                <div className="step-index">{index + 1}</div>
+                <button className="step-btn mono" type="button" onClick={() => onFocusNode(step)}>
                   {step}
                 </button>
               </div>
@@ -95,12 +89,6 @@ export default function PathPanel({
           </div>
         </div>
       ) : null}
-
-      {pathResult && !pathResult.path?.length && (
-        <div className="cg-path-empty">
-          No direct or indirect connections found between these nodes.
-        </div>
-      )}
     </section>
   );
 }

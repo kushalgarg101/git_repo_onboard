@@ -1,46 +1,46 @@
 export default function StatsPanel({ stats }) {
   if (!stats) {
     return (
-      <section className="cg-panel">
-        <h3>System Overview</h3>
-        <p className="cg-muted">Analysis telemetry will appear once the graph is generated.</p>
+      <section className="cg-panel cg-stats-panel">
+        <h3>Graph Statistics</h3>
+        <p className="cg-muted">Run an analysis to load graph-level telemetry.</p>
         <div className="cg-empty-visual stats" />
       </section>
     );
   }
 
-  const topHotspots = stats.hotspots?.slice(0, 5) || [];
+  const topHotspots = stats.hotspots?.slice(0, 6) || [];
   const languageDist = Object.entries(stats.language_distribution || {}).sort((a, b) => b[1] - a[1]);
+  const maxDegree = stats.max_degree ?? (stats.most_connected?.[0]?.degree || 0);
 
   return (
     <section className="cg-panel cg-stats-panel">
-      <h3>System Overview</h3>
-      <div className="cg-stats-grid">
-        <StatItem label="Total Nodes" value={stats.total_nodes} />
-        <StatItem label="Connections" value={stats.total_links} />
-        <StatItem label="Decoupled" value={stats.orphan_nodes} />
-        <StatItem label="Max Degree" value={stats.max_degree} />
-      </div>
+      <h3>Graph Statistics</h3>
 
-      <section style={{ marginTop: '32px' }}>
-        <h3>Risk Hotspots</h3>
-        <ul className="cg-search-results" style={{ margin: 0 }}>
+      <dl className="cg-stats-grid">
+        <StatItem label="Total Nodes" value={stats.total_nodes} />
+        <StatItem label="Total Links" value={stats.total_links} />
+        <StatItem label="Orphans" value={stats.orphan_nodes} />
+        <StatItem label="Max Degree" value={maxDegree} />
+      </dl>
+
+      <section className="cg-stats-section">
+        <h4>Risk Hotspots</h4>
+        <ul className="cg-hotspot-list">
           {topHotspots.map((item) => (
-            <li key={item.id} className="search-result-item">
-              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '12px', border: '1px solid var(--cg-panel-border)', borderRadius: 'var(--cg-radius-md)' }}>
-                <span className="mono" style={{ fontSize: '0.8rem' }}>{item.label || item.id}</span>
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--cg-error)' }}>{item.risk_score ?? item.complexity}</span>
-              </div>
+            <li key={item.id}>
+              <span className="mono hotspot-name">{item.label || item.id}</span>
+              <span className="hotspot-score">{item.risk_score ?? item.complexity ?? 0}</span>
             </li>
           ))}
         </ul>
       </section>
 
-      <section style={{ marginTop: '32px' }}>
-        <h3>Language Distribution</h3>
+      <section className="cg-stats-section">
+        <h4>Language Distribution</h4>
         <div className="cg-metrics-stack">
           {languageDist.map(([lang, count]) => (
-            <LanguageBar key={lang} lang={lang} count={count} total={stats.total_nodes} />
+            <LanguageBar key={lang} lang={lang} count={count} total={stats.total_nodes || 1} />
           ))}
         </div>
       </section>
@@ -52,13 +52,13 @@ function StatItem({ label, value }) {
   return (
     <div className="cg-stat-item">
       <dt>{label}</dt>
-      <dd>{value || 0}</dd>
+      <dd>{Number(value || 0)}</dd>
     </div>
   );
 }
 
 function LanguageBar({ lang, count, total }) {
-  const percent = Math.round((count / total) * 100);
+  const percent = Math.round((Number(count || 0) / Math.max(1, total)) * 100);
 
   return (
     <div className="cg-metric-bar-group">
@@ -67,7 +67,7 @@ function LanguageBar({ lang, count, total }) {
         <strong>{percent}%</strong>
       </div>
       <div className="bar-track">
-        <div className="bar-fill" style={{ width: `${percent}%`, background: 'var(--cg-info)' }} />
+        <div className="bar-fill info" style={{ width: `${percent}%` }} />
       </div>
     </div>
   );

@@ -10,36 +10,35 @@ export default function SearchPanel({ onSearch, results, loading, onFocusNode })
     }
     const timeout = setTimeout(() => {
       onSearch(query);
-    }, 320);
+    }, 280);
     return () => clearTimeout(timeout);
   }, [onSearch, query]);
 
   return (
     <section className="cg-panel cg-search-panel">
-      <h3>Search Entities</h3>
-      <div className="cg-search-input-container">
+      <h3>Search</h3>
+      <p className="cg-panel-subtitle">Find files, symbols, and summaries across the active graph.</p>
+
+      <div className="cg-field-group">
+        <label htmlFor="cg-search">Query</label>
         <input
+          id="cg-search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search symbols, files, functions..."
+          placeholder="Type a file name, class, function, or keyword"
           autoComplete="off"
         />
       </div>
 
       <div className="cg-search-status">
-        {loading ? (
-          <span className="scanning-text">Searching codebase...</span>
-        ) : (
-          <span className="results-count">
-            Found {results.length} matches
-          </span>
-        )}
+        {loading ? "Searching..." : `Matches: ${results.length}`}
       </div>
 
       <ul className="cg-search-results">
-        {results.length === 0 && !loading && query && (
-          <li className="no-results error">No matches found</li>
-        )}
+        {results.length === 0 && !loading && query ? (
+          <li className="cg-empty-list">No matches found.</li>
+        ) : null}
+
         {results.map((result) => (
           <li key={result.id} className="search-result-item">
             <button type="button" onClick={() => onFocusNode(result.id)}>
@@ -47,9 +46,7 @@ export default function SearchPanel({ onSearch, results, loading, onFocusNode })
                 <span className="result-label">{result.label || result.id}</span>
                 <span className="result-path mono">{result.id}</span>
               </div>
-              <div className={`result-badge type-${result.type}`}>
-                {result.type}
-              </div>
+              <span className={`result-badge type-${result.type}`}>{result.type}</span>
             </button>
           </li>
         ))}
