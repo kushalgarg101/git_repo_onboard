@@ -1,87 +1,106 @@
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { MapPin, FileCode, Clock, Users, ArrowRight } from "lucide-react";
+
 export default function NodePanel({ node, onSetPathFrom, onSetPathTo }) {
   if (!node) {
     return (
-      <section className="cg-panel cg-node-panel">
-        <h3>Node Details</h3>
-        <p className="cg-muted">Select a node in the graph to inspect its metadata and relationships.</p>
-        <div className="cg-empty-visual" />
-      </section>
+      <div className="flex flex-col h-full items-center justify-center p-6 text-center text-zinc-500">
+        <MapPin className="w-12 h-12 mb-4 opacity-20" />
+        <h3 className="text-lg font-medium text-zinc-300 mb-2">Select a Node</h3>
+        <p className="text-sm">Click on any node in the graph to inspect its metadata and relationships.</p>
+      </div>
     );
   }
 
   return (
-    <section className="cg-panel cg-node-panel">
-      <header className="cg-panel-header">
-        <div className={`node-type-icon type-${node.type}`}>{node.type?.[0]?.toUpperCase()}</div>
-        <div className="cg-panel-title-group">
-          <h3>{node.label || node.id}</h3>
-          <p className="mono cg-node-id">{node.id}</p>
+    <ScrollArea className="h-full">
+      <div className="p-4 space-y-6">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant="outline" className="bg-indigo-500/10 text-indigo-400 border-indigo-500/20 capitalize">
+              {node.type || "unknown"}
+            </Badge>
+          </div>
+          <h3 className="text-xl font-semibold text-zinc-100 break-words leading-tight">
+            {node.label || node.id}
+          </h3>
+          <p className="text-xs font-mono text-zinc-500 break-all">{node.id}</p>
         </div>
-      </header>
 
-      <div className="cg-metrics-stack">
-        <MetricBar label="Complexity" value={node.complexity} max={30} />
-        <MetricBar label="Churn" value={node.churn} max={60} />
-        <MetricBar label="Issues" value={node.issues} max={12} />
+        <div className="flex gap-2 w-full">
+          <Button variant="secondary" className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-xs h-8" onClick={() => onSetPathFrom(node.id)}>
+            Set as Start
+          </Button>
+          <Button variant="secondary" className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-xs h-8" onClick={() => onSetPathTo(node.id)}>
+            Set as End
+          </Button>
+        </div>
+
+        <Card className="bg-zinc-900/40 border-white/5 rounded-xl shadow-none">
+          <CardContent className="p-4 space-y-4">
+            <MetricBar label="Complexity" value={node.complexity} max={30} color="bg-amber-500" />
+            <MetricBar label="Churn" value={node.churn} max={60} color="bg-blue-500" />
+            <MetricBar label="Issues" value={node.issues} max={12} color="bg-red-500" />
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <Stat icon={<FileCode />} term="Language" value={node.language} />
+          <Stat icon={<ArrowRight />} term="Lines" value={node.line_count} />
+          <Stat icon={<Users />} term="Authors" value={node.contributors} />
+          <Stat icon={<Clock />} term="Updated" value={formatDate(node.last_modified)} />
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-zinc-300">Summary</h4>
+          <div className="text-sm leading-relaxed text-zinc-400 bg-zinc-900/30 p-3 rounded-xl border border-white/5">
+            {node.summary || "No automated summary available for this node."}
+          </div>
+        </div>
       </div>
-
-      <dl className="cg-stats-grid">
-        <Stat term="Language" value={node.language || "--"} />
-        <Stat term="Lines" value={node.line_count ?? "--"} />
-        <Stat term="Authors" value={node.contributors ?? "--"} />
-        <Stat term="Updated" value={formatDate(node.last_modified)} />
-      </dl>
-
-      <div className="cg-summary-block">
-        <label>Summary</label>
-        <p>{node.summary || "No automated summary available for this node."}</p>
-      </div>
-
-      <div className="cg-actions">
-        <button className="cg-ghost-btn" type="button" onClick={() => onSetPathFrom(node.id)}>
-          Set as Start
-        </button>
-        <button className="cg-ghost-btn" type="button" onClick={() => onSetPathTo(node.id)}>
-          Set as End
-        </button>
-      </div>
-    </section>
+    </ScrollArea>
   );
 }
 
-function MetricBar({ label, value, max }) {
+function MetricBar({ label, value, max, color }) {
   const safeValue = Number(value || 0);
   const safeMax = Math.max(1, Number(max || 1));
   const percent = Math.min(100, (safeValue / safeMax) * 100);
 
   return (
-    <div className="cg-metric-bar-group">
-      <div className="bar-header">
-        <span>{label}</span>
-        <strong>{safeValue}</strong>
+    <div className="space-y-1.5">
+      <div className="flex justify-between items-end text-xs">
+        <span className="text-zinc-400 font-medium">{label}</span>
+        <span className="text-zinc-200 font-mono">{safeValue}</span>
       </div>
-      <div className="bar-track">
-        <div className="bar-fill" style={{ width: `${percent}%` }} />
+      <div className="h-1.5 w-full bg-zinc-800 overflow-hidden rounded-full">
+        <div className={`h-full ${color}`} style={{ width: `${percent}%` }} />
       </div>
     </div>
   );
 }
 
-function Stat({ term, value }) {
+function Stat({ icon, term, value }) {
   return (
-    <div className="cg-stat-item">
-      <dt>{term}</dt>
-      <dd>{String(value ?? "--")}</dd>
+    <div className="flex flex-col p-3 bg-zinc-900/40 rounded-xl border border-white/5 gap-1">
+      <div className="flex items-center gap-1.5 text-zinc-500">
+        <div className="[&>svg]:w-3 [&>svg]:h-3">{icon}</div>
+        <span className="text-xs font-medium">{term}</span>
+      </div>
+      <span className="text-sm text-zinc-200 truncate">{String(value ?? "--")}</span>
     </div>
   );
 }
 
 function formatDate(iso) {
-  if (!iso) return "N/A";
+  if (!iso) return "--";
   try {
     const date = new Date(iso);
     return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   } catch {
-    return "N/A";
+    return "--";
   }
 }

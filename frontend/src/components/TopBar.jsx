@@ -1,39 +1,47 @@
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Activity, LayoutDashboard, Terminal } from "lucide-react";
+
 export default function TopBar({ sessionId, analysisState, analysisDetail, onClearPath }) {
   const phase = analysisState || "idle";
   const detail = analysisDetail || phaseLabel(phase);
 
   return (
-    <header className="cg-topbar">
-      <div className="cg-brand">
-        <div className="cg-brand-mark" aria-hidden="true">
-          <div className="mark-core" />
+    <header className="relative z-20 flex items-center justify-between px-6 py-3 bg-zinc-950/50 backdrop-blur-md border-b border-white/10">
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30">
+          <LayoutDashboard className="w-5 h-5 text-indigo-400" />
         </div>
-        <div className="cg-brand-copy">
-          <h1>CodeGraph + Agentic</h1>
-          <p>Analyze code graph and agentic graph in one workspace</p>
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight text-zinc-100 flex items-center gap-2">
+            CodeGraph <span className="text-zinc-500 font-normal">+ Agentic</span>
+          </h1>
+          <p className="text-xs text-zinc-400 font-medium">Analyze code and agentic graphs in one unified workspace</p>
         </div>
       </div>
 
-      <div className="cg-topbar-right">
-        <div className="cg-status-capsule mono" title={sessionId || "No active session"}>
-          <span className="capsule-label">Session</span>
-          <span className="capsule-value">{sessionId ? sessionId.slice(0, 12) : "--"}</span>
-        </div>
+      <div className="flex items-center gap-4">
+        {sessionId && (
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-zinc-900/50 border border-zinc-800">
+            <Terminal className="w-4 h-4 text-zinc-500" />
+            <span className="text-xs font-mono text-zinc-300">{sessionId.slice(0, 12)}</span>
+          </div>
+        )}
 
-        <div className={`cg-status-capsule state-${phase}`}>
-          <span className="status-dot" />
-          <span className="capsule-value">{phaseLabel(phase)}</span>
-        </div>
+        <Badge
+          variant={phase === "error" ? "destructive" : phase === "running" ? "default" : "secondary"}
+          className={`capitalize flex items-center gap-1.5 ${phase === "running" ? "bg-indigo-500 hover:bg-indigo-600" : ""}`}
+        >
+          {phase === "running" && <Activity className="w-3 h-3 animate-pulse" />}
+          {phaseLabel(phase)}
+        </Badge>
 
-        <button className="cg-ghost-btn" type="button" onClick={onClearPath}>
+        <Button variant="ghost" size="sm" onClick={onClearPath} className="text-zinc-400 hover:text-zinc-100">
           Clear Path
-        </button>
+        </Button>
       </div>
 
-      <div className="cg-analysis-ticker" aria-live="polite">
-        <span className="ticker-label">Status</span>
-        <span className="ticker-content">{detail}</span>
-      </div>
+      <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>
     </header>
   );
 }

@@ -9,9 +9,9 @@ import StatusToast from "./components/StatusToast";
 import TopBar from "./components/TopBar";
 import TreeMap from "./components/charts/TreeMap";
 import TopologyGraph from "./components/charts/TopologyGraph";
+import AnimatedBackground from "./components/AnimatedBackground";
 import { AGENT_TABS, deriveAgenticModel } from "./lib/agenticGraph";
 import { useAppState } from "./state/useAppState";
-import GraphScene from "./three/GraphScene";
 
 const CODE_TABS = ["node", "stats", "search", "path"];
 const CONTEXTS = [
@@ -19,16 +19,15 @@ const CONTEXTS = [
   { id: "agents", label: "Agents" },
 ];
 const VIEW_MODES = [
-  { id: "3d", label: "3D Graph" },
-  { id: "treemap", label: "Treemap" },
-  { id: "topology", label: "Topology" },
+  { id: "topology", label: "Topology Graph" },
+  { id: "treemap", label: "Tree Map" },
 ];
 
 export default function App() {
   const [activeContext, setActiveContext] = useState("code");
   const [activeCodeTab, setActiveCodeTab] = useState("node");
   const [activeAgentTab, setActiveAgentTab] = useState(AGENT_TABS[0]?.id || "hooks");
-  const [viewMode, setViewMode] = useState("3d");
+  const [viewMode, setViewMode] = useState("topology");
   const [pathFromId, setPathFromId] = useState("");
   const [pathToId, setPathToId] = useState("");
 
@@ -120,8 +119,8 @@ export default function App() {
   };
 
   return (
-    <div className="cg-shell">
-      <div className="cg-atmosphere" aria-hidden="true" />
+    <div className="cg-shell text-foreground font-sans">
+      <AnimatedBackground />
 
       <TopBar
         sessionId={sessionId}
@@ -149,18 +148,22 @@ export default function App() {
           graph={graph}
         />
 
-        <section className="cg-viewport-panel">
-          <div className="cg-viewport-toolbar">
-            <div className="cg-viewport-meta">
-              <span>Nodes: {activeGraph?.nodes?.length || 0}</span>
-              <span>Links: {activeGraph?.links?.length || 0}</span>
+        <section className="flex-1 relative flex flex-col min-w-0 z-10">
+          <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+            <div className="flex items-center gap-4 px-3 py-1.5 rounded-full bg-zinc-950/60 backdrop-blur-md border border-white/10 pointer-events-auto shadow-lg">
+              <span className="text-xs font-medium text-zinc-400">Nodes: <span className="text-zinc-100">{activeGraph?.nodes?.length || 0}</span></span>
+              <div className="w-px h-3 bg-white/20"></div>
+              <span className="text-xs font-medium text-zinc-400">Links: <span className="text-zinc-100">{activeGraph?.links?.length || 0}</span></span>
             </div>
-            <div className="cg-view-switcher">
+            <div className="flex items-center p-1 rounded-full bg-zinc-950/60 backdrop-blur-md border border-white/10 pointer-events-auto shadow-lg">
               {VIEW_MODES.map((mode) => (
                 <button
                   key={mode.id}
                   type="button"
-                  className={viewMode === mode.id ? "active" : ""}
+                  className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${viewMode === mode.id
+                    ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5 border border-transparent"
+                    }`}
                   onClick={() => setViewMode(mode.id)}
                 >
                   {mode.label}
@@ -169,18 +172,10 @@ export default function App() {
             </div>
           </div>
 
-          <div className="cg-viewport-content">
+          <div className="flex-1 relative bg-transparent">
             {activeGraph?.nodes?.length ? (
               <>
-                {viewMode === "3d" && (
-                  <GraphScene
-                    graph={activeGraph}
-                    selectedNodeId={selectedNodeId}
-                    highlightedNodeIds={highlightedNodeIds}
-                    pathNodeIds={pathNodeIds}
-                    onSelectNode={setSelectedNodeId}
-                  />
-                )}
+
                 {viewMode === "treemap" && (
                   <TreeMap
                     graph={activeGraph}
@@ -209,20 +204,23 @@ export default function App() {
           </div>
 
           {busy ? (
-            <div className="cg-busy-overlay">
-              <div className="spinner" />
-              <span>Running analysis...</span>
+            <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-zinc-950/60 backdrop-blur-sm">
+              <div className="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4" />
+              <span className="text-zinc-100 font-medium tracking-wide">Running analysis...</span>
             </div>
           ) : null}
         </section>
 
-        <aside className="cg-right-panel">
-          <div className="cg-tabs cg-context-tabs">
+        <aside className="w-[400px] flex flex-col bg-zinc-950/80 backdrop-blur-xl border-l border-white/10 shadow-[-8px_0_32px_-8px_rgba(0,0,0,0.5)] z-20">
+          <div className="flex p-2 gap-1 border-b border-white/10 bg-zinc-950/40">
             {CONTEXTS.map((entry) => (
               <button
                 key={entry.id}
                 type="button"
-                className={activeContext === entry.id ? "active" : ""}
+                className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${activeContext === entry.id
+                  ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shadow-inner"
+                  : "text-zinc-400 hover:text-zinc-200 hover:bg-white/5 border border-transparent"
+                  }`}
                 onClick={() => setActiveContext(entry.id)}
               >
                 {entry.label}
@@ -230,12 +228,15 @@ export default function App() {
             ))}
           </div>
 
-          <div className="cg-tabs">
+          <div className="flex p-2 gap-1 border-b border-white/5 bg-zinc-900/20 overflow-x-auto no-scrollbar">
             {activeTabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
-                className={activeTab === tab.id ? "active" : ""}
+                className={`px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-colors ${activeTab === tab.id
+                  ? "bg-zinc-800 text-zinc-100 border border-zinc-700 shadow-sm"
+                  : "text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 border border-transparent"
+                  }`}
                 onClick={() => {
                   if (activeContext === "agents") {
                     setActiveAgentTab(tab.id);
@@ -249,7 +250,7 @@ export default function App() {
             ))}
           </div>
 
-          <div className="cg-tab-content">
+          <div className="flex-1 overflow-hidden relative">
             {activeContext === "code" && activeCodeTab === "node" ? (
               <NodePanel
                 node={selectedNode}
