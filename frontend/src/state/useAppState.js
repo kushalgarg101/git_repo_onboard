@@ -123,6 +123,24 @@ export function useAppState() {
           model: aiModel.trim() || undefined,
         },
       });
+
+      // SYNC MODE: If the backend returned the graph immediately (e.g., on Vercel)
+      if (analysis.status === "done" && analysis.graph) {
+        setSessionAndUrl(analysis.id, setSessionId);
+        setGraph(analysis.graph);
+        if (analysis.graph.meta?.stats) {
+          setStats(analysis.graph.meta.stats);
+        }
+        setAnalysisState("done");
+        setAnalysisDetail("Complete");
+        setStatusTone("success");
+        setStatusMessage("Analysis complete (Synchronous)");
+        setPathResult(null);
+        setSearchResults([]);
+        return;
+      }
+
+      // ASYNC MODE: Standard polling path
       setSessionAndUrl(analysis.id, setSessionId);
       setPathResult(null);
       setSearchResults([]);

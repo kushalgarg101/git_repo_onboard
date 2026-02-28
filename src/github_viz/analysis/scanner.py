@@ -12,6 +12,7 @@ import pathlib
 import shutil
 import subprocess
 import tempfile
+import requests
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -132,15 +133,71 @@ def ensure_local_repo(repo_url: str) -> tuple[pathlib.Path, pathlib.Path]:
 
     tmp_dir = pathlib.Path(tempfile.mkdtemp(prefix="codegraph_"))
     try:
+        # Attempt standard git clone first
         subprocess.check_call(
             ["git", "clone", "--depth", "1", repo_url, str(tmp_dir)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
     except Exception as exc:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        raise RuntimeError(f"Failed to clone repo: {repo_url}") from exc
+        # Fallback to ZIP download for environments without git (e.g., Vercel Serverless)
+        try:
+            _download_zipball(repo_url, tmp_dir)
+        except Exception as zip_exc:
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise RuntimeError(
+                f"Failed to clone or download repo: {repo_url}. "
+                f"Inner errors: git={str(exc)}, zip={str(zip_exc)}"
+            ) from zip_exc
     return tmp_dir, tmp_dir
+
+
+def _download_zipball(repo_url: str, target_dir: pathlib.Path) -> None:
+    """Download and extract a GitHub repository as a ZIP archive."""
+    import zipfile
+    import io
+
+    # Extract owner/repo from URL
+    match = re.search(r"github\.com/([^/]+)/([^/]+?)(?:\.git)?$", repo_url.rstrip("/"))
+    if not match:
+        raise ValueError(f"Could not parse GitHub owner/repo from {repo_url}")
+    
+    owner, repo = match.groups()
+    zip_url = f"https://api.github.com/repos/{owner}/{repo}/zipball/main"
+    
+    headers = {}
+    token = os.getenv("GITHUB_TOKEN") or os.getenv("GITHUB_PAT")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    response = requests.get(zip_url, headers=headers, timeout=30)
+    # If main fails, try master as a fallback
+    if response.status_code == 404:
+        zip_url = f"https://api.github.com/repos/{owner}/{repo}/zipball/master"
+        response = requests.get(zip_url, headers=headers, timeout=30)
+    
+    response.raise_for_status()
+
+    with zipfile.ZipFile(io.BytesIO(response.content)) as zip_ref:
+        # GitHub zipballs contain a top-level directory like "owner-repo-hash/"
+        # We want to extract its contents directly into target_dir
+        top_level_dir = zip_ref.namelist()[0].split('/')[0]
+        for member in zip_ref.namelist():
+            if not member.startswith(top_level_dir):
+                continue
+            
+            # Remove the top-level directory component
+            rel_path = member[len(top_level_dir)+1:]
+            if not rel_path:
+                continue
+            
+            target_path = target_dir / rel_path
+            if member.endswith('/'):
+                target_path.mkdir(parents=True, exist_ok=True)
+            else:
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                with zip_ref.open(member) as source, open(target_path, "wb") as target:
+                    shutil.copyfileobj(source, target)
 
 
 def _load_gitignore_patterns(root: pathlib.Path) -> list[str]:

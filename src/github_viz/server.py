@@ -9,6 +9,8 @@ The API is intentionally simple:
 from __future__ import annotations
 
 import logging
+import os
+import re
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -107,8 +109,40 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/analyze")
     def analyze(req: AnalyzeRequest):
-        """Start background analysis for a GitHub repository URL."""
+        """Start analysis for a GitHub repository URL."""
         session_id = str(uuid.uuid4())
+        
+        # On Vercel, we must run synchronously because background threads are killed
+        # once the response is sent, and in-memory state is not shared between polls.
+        if os.environ.get("VERCEL") or os.environ.get("VERCEL_REGION"):
+            app.state.sessions.set_status(session_id, "running", "Analyzing (Vercel Sync Mode)")
+            try:
+                # Perform analysis in the main request thread
+                graph = analyze_repo(
+                    path=None,
+                    repo_url=req.repo_url,
+                    granularity=req.granularity,
+                    languages=req.languages,
+                    with_ai=req.with_ai,
+                    ai_options=req.ai.model_dump(exclude_none=True) if req.ai else None,
+                )
+                graph["meta"]["session_id"] = session_id
+
+                # Bundle stats directly into the graph meta to prevent extra fetch on Vercel
+                from github_viz.analysis.stats import calculate_graph_stats
+                stats = calculate_graph_stats(graph["nodes"], graph["links"])
+                graph["meta"]["stats"] = stats
+
+                app.state.sessions.set_graph(session_id, graph)
+                app.state.sessions.set_status(session_id, "done", "Complete")
+                return {"id": session_id, "status": "done", "graph": graph}
+            except Exception as exc:
+                logger.exception("Vercel Sync Analysis failed")
+                error_msg = str(exc)
+                app.state.sessions.set_status(session_id, "error", error_msg)
+                return {"id": session_id, "status": "error", "detail": error_msg}
+
+        # Standard asynchronous path for permanent servers (Render, Docker, etc.)
         app.state.sessions.set_status(session_id, "pending", "Queued")
         app.state.executor.submit(
             _analysis_worker,
