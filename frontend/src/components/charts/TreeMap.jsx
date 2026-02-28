@@ -113,7 +113,22 @@ export default function TreeMap({ graph, selectedNodeId, onSelectNode }) {
       .text((d) => ((d.x1 - d.x0 > 80 ? d.data.name : "")));
 
     return undefined;
-  }, [graph, onSelectNode, selectedNodeId]);
+  }, [graph, onSelectNode]); // 🛑 Removed selectedNodeId so the treemap only builds once
+
+  // 🎨 Separate effect just for visual highlights without rebuilding the hierarchy
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const svg = d3.select(containerRef.current).select("svg");
+    if (svg.empty()) return;
+
+    svg.selectAll(".cg-treemap-leaves rect.cursor-pointer")
+      .attr("stroke", (d) => (d.data.id === selectedNodeId ? "#ffffff" : "rgba(255, 255, 255, 0.1)"))
+      .attr("stroke-width", (d) => (d.data.id === selectedNodeId ? 2.5 : 1));
+
+    svg.selectAll(".cg-treemap-leaves text")
+      .style("opacity", (d) => d.data.id === selectedNodeId ? 1 : 0.9);
+
+  }, [selectedNodeId]);
 
   return (
     <div className="absolute inset-0 z-0 h-full w-full">

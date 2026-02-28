@@ -6,6 +6,8 @@ const MAX_LINKS = 1000;
 
 export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
   const containerRef = useRef(null);
+  const zoomBehaviorRef = useRef(null); // 🎥 Save D3 zoom behavior
+  const svgRef = useRef(null); // 🎥 Save SVG reference
 
   useEffect(() => {
     if (!containerRef.current || !graph?.nodes?.length) return undefined;
@@ -35,6 +37,8 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
       .attr("height", "100%")
       .attr("class", "cg-topology-svg");
 
+    svgRef.current = svg;
+
     // Defs for glowing effects and shadows
     const defs = svg.append("defs");
     const filter = defs.append("filter").attr("id", "glow").attr("x", "-50%").attr("y", "-50%").attr("width", "200%").attr("height", "200%");
@@ -49,10 +53,19 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
       stage.attr("transform", event.transform);
     });
 
+    zoomBehaviorRef.current = zoom;
     svg.call(zoom);
 
     // Initial transform to center graph a bit better
     svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.8).translate(-width / 2, -height / 2));
+
+    // Handle double click to reset zoom
+    svg.on("dblclick.zoom", null); // disable default
+    svg.on("dblclick", () => {
+      onSelectNode(null);
+      svg.transition().duration(750)
+        .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.8).translate(-width / 2, -height / 2));
+    });
 
     const simulation = d3
       .forceSimulation(nodes)
@@ -71,16 +84,10 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
       .join("path")
       .attr("fill", "none")
       .attr("stroke", (d) =>
-        linkEndpointId(d.source) === selectedNodeId || linkEndpointId(d.target) === selectedNodeId
-          ? "rgba(45, 212, 191, 0.9)" // Teal-400
-          : "rgba(100, 116, 139, 0.25)" // Slate-500
+        linkEndpointId(d.source) === selectedNodeId ? "rgba(45, 212, 191, 0.9)" : "rgba(100, 116, 139, 0.25)"
       )
-      .attr("stroke-width", (d) =>
-        linkEndpointId(d.source) === selectedNodeId || linkEndpointId(d.target) === selectedNodeId ? 2.5 : 1
-      )
-      .attr("stroke-dasharray", (d) =>
-        linkEndpointId(d.source) === selectedNodeId || linkEndpointId(d.target) === selectedNodeId ? "4,4" : "none"
-      );
+      .attr("stroke-width", 1)
+      .attr("stroke-dasharray", "none");
 
     const nodeGroup = stage
       .append("g")
@@ -98,10 +105,10 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
     nodeGroup
       .append("circle")
       .attr("r", (d) => nodeRadius(d))
-      .attr("fill", (d) => nodeFill(d, selectedNodeId))
-      .attr("stroke", (d) => d.id === selectedNodeId ? "#ffffff" : "rgba(255, 255, 255, 0.15)")
-      .attr("stroke-width", (d) => d.id === selectedNodeId ? 2 : 1)
-      .style("filter", (d) => d.id === selectedNodeId ? "url(#glow)" : "none");
+      .attr("fill", (d) => nodeFill(d, null))
+      .attr("stroke", "rgba(255, 255, 255, 0.15)")
+      .attr("stroke-width", 1)
+      .style("filter", "none");
 
     const labels = nodeGroup
       .append("text")
@@ -109,12 +116,11 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
       .attr("y", 4)
       .text((d) => getShortLabel(d.label || d.id))
       .attr("class", "text-xs font-semibold fill-zinc-200 pointer-events-none")
-      .style("opacity", (d) => d.id === selectedNodeId ? 1 : 0.6);
+      .style("opacity", 0.6);
 
-    // Optional: add a backdrop to text for readability
     labels.clone(true)
       .lower()
-      .attr("stroke", "rgba(9, 9, 11, 0.95)") // inc-950
+      .attr("stroke", "rgba(9, 9, 11, 0.95)")
       .attr("stroke-width", 3)
       .attr("class", "text-xs font-semibold pointer-events-none");
 
@@ -126,7 +132,7 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
         const ty = linkEndpointCoord(d.target, "y");
         const dx = tx - sx;
         const dy = ty - sy;
-        const dr = Math.sqrt(dx * dx + dy * dy) * 1.5; // Curve radius
+        const dr = Math.sqrt(dx * dx + dy * dy) * 1.5;
         return `M${sx},${sy}A${dr},${dr} 0 0,1 ${tx},${ty}`;
       });
 
@@ -157,17 +163,23 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
         .on("end", dragended);
     }
 
+    // Save simulation to attach node coordinates later if needed
+    containerRef.current.__simulation = simulation;
+
     return () => simulation.stop();
   }, [graph, onSelectNode]); // 🛑 Removed selectedNodeId so the physics map doesn't rebuild / shuffle on click
 
-  // 🎨 Separate effect just for updating visual highlights without touching the physics simulation
+  // 🎨 Separate effect just for updating visual highlights & CAMERA ZOOM
   useEffect(() => {
-    if (!containerRef.current) return;
-    const svg = d3.select(containerRef.current).select("svg");
-    if (svg.empty()) return;
+    if (!containerRef.current || !svgRef.current || !zoomBehaviorRef.current) return;
+    const svg = svgRef.current;
+    const zoom = zoomBehaviorRef.current;
+    const container = containerRef.current;
 
     // 1. Calculate connected node IDs
     const connectedNodeIds = new Set();
+    let targetNodeData = null;
+
     if (selectedNodeId && graph?.links) {
       for (const link of graph.links) {
         const sourceId = linkEndpointId(link.source);
@@ -175,20 +187,25 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
         if (sourceId === selectedNodeId) connectedNodeIds.add(targetId);
         if (targetId === selectedNodeId) connectedNodeIds.add(sourceId);
       }
+
+      // Attempt to find the node data for zooming
+      const simulation = container.__simulation;
+      if (simulation) {
+        targetNodeData = simulation.nodes().find(n => n.id === selectedNodeId);
+      }
     }
 
-    // Helper to check if a link is part of the highlighted cluster
     const isLinkActive = (d) => {
       const sourceId = linkEndpointId(d.source);
       const targetId = linkEndpointId(d.target);
       return sourceId === selectedNodeId || targetId === selectedNodeId;
     };
 
-    // Helper to check if a node is part of the highlighted cluster
     const isNodeActive = (id) => {
       return id === selectedNodeId || connectedNodeIds.has(id);
     };
 
+    // Update visuals
     svg.selectAll(".cg-topology-links path")
       .attr("stroke", (d) =>
         isLinkActive(d)
@@ -221,6 +238,25 @@ export default function TopologyGraph({ graph, selectedNodeId, onSelectNode }) {
         if (!selectedNodeId) return 0.6; // Base opacity
         return isNodeActive(d.id) ? 1 : 0.15;
       });
+
+    // 🎥 2. CAMERA ZOOM
+    if (targetNodeData && targetNodeData.x !== undefined && targetNodeData.y !== undefined) {
+      const width = Math.max(container.clientWidth, 640);
+      const height = Math.max(container.clientHeight, 440);
+
+      // Calculate transform to center on the target node with a nice 1.8x scale
+      const scale = 1.8;
+      const transform = d3.zoomIdentity
+        .translate(width / 2, height / 2)
+        .scale(scale)
+        .translate(-targetNodeData.x, -targetNodeData.y);
+
+      // Transition the SVG pan/zoom
+      svg.transition()
+        .duration(850)
+        .ease(d3.easeCubicOut)
+        .call(zoom.transform, transform);
+    }
 
   }, [selectedNodeId, graph]);
 
