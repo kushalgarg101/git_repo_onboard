@@ -7,6 +7,7 @@ remote repositories, and lightweight repository metadata collection.
 from __future__ import annotations
 
 import fnmatch
+import logging
 import os
 import pathlib
 import re
@@ -16,6 +17,8 @@ import tempfile
 import requests
 from dataclasses import dataclass
 from typing import Iterable
+
+logger = logging.getLogger(__name__)
 
 
 SKIP_DIRS = {
