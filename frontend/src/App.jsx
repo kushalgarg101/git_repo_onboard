@@ -231,11 +231,11 @@ export default function App() {
               </>
             ) : (
               <div className="cg-empty">
-                <h2>{activeContext === "agents" ? "Agentic Graph" : "Repository Visualization"}</h2>
+                <h2>{activeContext === "agents" ? "Agentic Graph" : "Agentic Code Graph"}</h2>
                 <p className="cg-muted">
                   {graph
                     ? "No agentic entities detected yet. Try another repository or a deeper granularity."
-                    : "Analyze a GitHub repository to generate an interactive code + agentic map."}
+                    : "Analyze a repository to generate an interactive Agentic Code Graph."}
                 </p>
               </div>
             )}

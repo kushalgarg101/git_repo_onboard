@@ -14,9 +14,9 @@ export default function TopBar({ sessionId, analysisState, analysisDetail, onCle
         </div>
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-zinc-100 flex items-center gap-2">
-            CodeGraph <span className="text-zinc-500 font-normal">+ Agentic</span>
+            Agentic <span className="text-zinc-500 font-normal">Code Graph</span>
           </h1>
-          <p className="text-xs text-zinc-400 font-medium">Analyze code and agentic graphs in one unified workspace</p>
+          <p className="text-xs text-zinc-400 font-medium">Unified workspace for code structure and agentic analysis</p>
         </div>
       </div>
 
