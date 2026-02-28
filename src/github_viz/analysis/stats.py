@@ -37,6 +37,7 @@ def compute_stats(graph: dict) -> dict[str, Any]:
         "total_links": len(links),
         "orphan_nodes": len(orphan_ids),
         "orphan_ids": orphan_ids[:20],
+        "max_degree": max(degree.values(), default=0),
         "most_connected": [{"id": node_id, "degree": value} for node_id, value in most_connected],
         "hotspots": [
             {

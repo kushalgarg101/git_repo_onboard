@@ -54,6 +54,9 @@ def analyze(
     granularity: str = typer.Option("files", "--granularity", help="files|classes|functions"),
     languages: str = typer.Option("py,js,ts,rs", "--languages", help="Comma-separated language codes"),
     with_ai: bool = typer.Option(False, "--with-ai", help="Enable AI summaries"),
+    ai_api_key: Optional[str] = typer.Option(None, "--ai-api-key", help="LLM API key override"),
+    ai_base_url: Optional[str] = typer.Option(None, "--ai-base-url", help="LLM base URL override"),
+    ai_model: Optional[str] = typer.Option(None, "--ai-model", help="LLM model override"),
     ui: bool = typer.Option(False, "--ui", help="Start local API+UI and open browser"),
     open_browser: bool = typer.Option(True, "--open/--no-open", help="Open browser automatically"),
 ) -> None:
@@ -71,7 +74,14 @@ def analyze(
         "granularity": granularity,
         "languages": _parse_languages(languages),
         "with_ai": with_ai,
+        "ai": {
+            "api_key": ai_api_key,
+            "base_url": ai_base_url,
+            "model": ai_model,
+        },
     }
+    if not with_ai:
+        options["ai"] = None
 
     if ui:
         port = _find_free_port(get_settings().port)
@@ -101,7 +111,14 @@ def analyze(
         return
 
     try:
-        graph = analyze_repo(path=path, repo_url=repo_url, **options)
+        graph = analyze_repo(
+            path=path,
+            repo_url=repo_url,
+            granularity=options["granularity"],
+            languages=options["languages"],
+            with_ai=options["with_ai"],
+            ai_options=options["ai"],
+        )
     except FileNotFoundError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(2)

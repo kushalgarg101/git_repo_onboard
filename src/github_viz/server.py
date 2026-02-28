@@ -85,6 +85,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         granularity: str,
         languages: list[str],
         with_ai: bool,
+        ai_options: dict | None,
     ) -> None:
         """Run analysis in background and persist status/results."""
         app.state.sessions.set_status(session_id, "running", "Analyzing repository")
@@ -95,6 +96,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 granularity=granularity,
                 languages=languages,
                 with_ai=with_ai,
+                ai_options=ai_options,
             )
             graph["meta"]["session_id"] = session_id
             app.state.sessions.set_graph(session_id, graph)
@@ -116,6 +118,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             granularity=req.granularity,
             languages=req.languages,
             with_ai=req.with_ai,
+            ai_options=req.ai.model_dump(exclude_none=True) if req.ai else None,
         )
         return {"id": session_id, "status": "pending"}
 
@@ -131,6 +134,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 granularity=req.granularity,
                 languages=req.languages,
                 with_ai=req.with_ai,
+                ai_options=req.ai.model_dump(exclude_none=True) if req.ai else None,
             )
         except FileNotFoundError as exc:
             app.state.sessions.set_status(session_id, "error", str(exc))
@@ -251,6 +255,12 @@ def _fallback_html() -> str:
           <option value="functions">Files + Functions</option>
         </select>
         <label><input type="checkbox" id="withAi" /> Enable AI summaries</label>
+        <label>AI API Key</label>
+        <input id="aiApiKey" type="password" placeholder="sk-... (optional)" />
+        <label>AI Base URL</label>
+        <input id="aiBaseUrl" placeholder="https://api.openai.com/v1" />
+        <label>AI Model</label>
+        <input id="aiModel" placeholder="gpt-4o-mini" />
         <button id="analyzeBtn">Analyze</button>
         <div id="statusBox" class="status" style="display:none;"></div>
         <div id="session" class="muted"></div>
@@ -265,6 +275,9 @@ def _fallback_html() -> str:
       const repoUrlInput = document.getElementById('repoUrl');
       const granularityInput = document.getElementById('granularity');
       const withAiInput = document.getElementById('withAi');
+      const aiApiKeyInput = document.getElementById('aiApiKey');
+      const aiBaseUrlInput = document.getElementById('aiBaseUrl');
+      const aiModelInput = document.getElementById('aiModel');
       const analyzeBtn = document.getElementById('analyzeBtn');
       const sessionEl = document.getElementById('session');
       const statusBox = document.getElementById('statusBox');
@@ -287,7 +300,12 @@ def _fallback_html() -> str:
             repo_url,
             granularity: granularityInput.value,
             with_ai: withAiInput.checked,
-            languages: ['py','js','ts','rs']
+            languages: ['py','js','ts','rs'],
+            ai: withAiInput.checked ? {
+              api_key: aiApiKeyInput.value.trim() || null,
+              base_url: aiBaseUrlInput.value.trim() || null,
+              model: aiModelInput.value.trim() || null
+            } : null
           })
         });
         const data = await res.json();

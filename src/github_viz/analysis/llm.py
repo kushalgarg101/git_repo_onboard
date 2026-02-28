@@ -9,6 +9,7 @@ import pathlib
 import re
 import time
 from collections.abc import Callable
+from typing import Any
 
 import requests
 
@@ -26,10 +27,11 @@ def summarize_nodes(
     nodes: dict[str, Node],
     repo_root: pathlib.Path,
     *,
+    ai_options: dict[str, Any] | None = None,
     progress_callback: Callable[[int, int], None] | None = None,
     batch_size: int = 4,
     token_budget: int = 6000,
-) -> None:
+) -> dict[str, Any]:
     """Summarize file nodes in batches using an OpenAI-compatible endpoint.
 
     Args:
@@ -39,18 +41,34 @@ def summarize_nodes(
     - batch_size: number of files per request
     - token_budget: rough per-request token budget for snippet packing
     """
-    base_url = os.getenv("OPENAI_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
-    model = os.getenv("OPENAI_MODEL", DEFAULT_MODEL)
-    api_key = os.getenv("OPENAI_API_KEY", "")
-
-    if not _can_call_llm(base_url, api_key):
-        logger.info("LLM summaries skipped: missing credentials for non-local endpoint")
-        return
+    settings = ai_options or {}
+    base_url = str(settings.get("base_url") or os.getenv("OPENAI_BASE_URL", DEFAULT_BASE_URL)).strip().rstrip("/")
+    model = str(settings.get("model") or os.getenv("OPENAI_MODEL", DEFAULT_MODEL)).strip() or DEFAULT_MODEL
+    api_key = str(settings.get("api_key") or os.getenv("OPENAI_API_KEY", "")).strip()
 
     file_nodes = [node for node in nodes.values() if node.type == "file"]
     total = len(file_nodes)
     if total == 0:
-        return
+        return {
+            "enabled": True,
+            "status": "completed",
+            "model": model,
+            "base_url": base_url,
+            "total_files": 0,
+            "summarized_files": 0,
+        }
+
+    if not _can_call_llm(base_url, api_key):
+        logger.info("LLM summaries skipped: missing credentials for non-local endpoint")
+        return {
+            "enabled": True,
+            "status": "skipped",
+            "reason": "missing_credentials",
+            "model": model,
+            "base_url": base_url,
+            "total_files": total,
+            "summarized_files": 0,
+        }
 
     headers = {"Content-Type": "application/json"}
     if api_key:
@@ -58,6 +76,7 @@ def summarize_nodes(
     endpoint = f"{base_url}/chat/completions"
 
     done = 0
+    summarized = 0
     for start in range(0, total, max(1, batch_size)):
         batch = file_nodes[start : start + batch_size]
         prompt = _build_batch_prompt(batch, repo_root, token_budget=token_budget)
@@ -71,10 +90,22 @@ def summarize_nodes(
         raw = _call_with_retry(endpoint, headers, payload)
         summaries = _parse_batch_response(raw)
         for node in batch:
-            node.summary = summaries.get(node.id, node.summary)
+            candidate = summaries.get(node.id, "").strip()
+            if candidate:
+                node.summary = candidate
+                summarized += 1
             done += 1
             if progress_callback:
                 progress_callback(done, total)
+
+    return {
+        "enabled": True,
+        "status": "completed",
+        "model": model,
+        "base_url": base_url,
+        "total_files": total,
+        "summarized_files": summarized,
+    }
 
 
 def _build_batch_prompt(batch: list[Node], repo_root: pathlib.Path, *, token_budget: int) -> str:

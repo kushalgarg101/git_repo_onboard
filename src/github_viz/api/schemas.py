@@ -11,6 +11,23 @@ Granularity = Literal["files", "classes", "functions"]
 Language = Literal["py", "js", "ts", "rs", "go", "java", "c", "cpp"]
 
 
+class AiSummaryOptions(BaseModel):
+    """Optional LLM override values for AI summaries."""
+
+    api_key: str | None = None
+    base_url: str | None = None
+    model: str | None = None
+
+    @field_validator("api_key", "base_url", "model")
+    @classmethod
+    def strip_optional_values(cls, value: str | None) -> str | None:
+        """Normalize empty strings to None."""
+        if value is None:
+            return None
+        normalized = value.strip()
+        return normalized or None
+
+
 class AnalyzeRequest(BaseModel):
     """Request payload for remote GitHub URL analysis."""
 
@@ -18,6 +35,7 @@ class AnalyzeRequest(BaseModel):
     granularity: Granularity = "files"
     languages: list[Language] = Field(default_factory=lambda: ["py", "js", "ts", "rs"])
     with_ai: bool = False
+    ai: AiSummaryOptions | None = None
 
     @field_validator("repo_url")
     @classmethod
@@ -38,6 +56,7 @@ class AnalyzeLocalRequest(BaseModel):
     granularity: Granularity = "files"
     languages: list[Language] = Field(default_factory=lambda: ["py", "js", "ts", "rs"])
     with_ai: bool = False
+    ai: AiSummaryOptions | None = None
 
     @field_validator("path")
     @classmethod

@@ -29,6 +29,7 @@ def analyze_repo(
     granularity: str,
     languages: list[str],
     with_ai: bool,
+    ai_options: Optional[dict] = None,
 ) -> dict:
     """Analyze repository and return graph JSON consumed by API/UI."""
     started_at = time.monotonic()
@@ -88,8 +89,25 @@ def analyze_repo(
         if github:
             _apply_github_metrics(nodes, github, repo_root)
 
+        ai_summary = {
+            "enabled": with_ai,
+            "status": "disabled",
+            "total_files": len([node for node in nodes.values() if node.type == "file"]),
+            "summarized_files": 0,
+        }
+
         if with_ai:
-            summarize_nodes(nodes, repo_root)
+            try:
+                ai_summary = summarize_nodes(nodes, repo_root, ai_options=ai_options)
+            except Exception as exc:
+                logger.warning("AI summarization failed: %s", exc)
+                ai_summary = {
+                    "enabled": True,
+                    "status": "error",
+                    "detail": str(exc),
+                    "total_files": ai_summary["total_files"],
+                    "summarized_files": 0,
+                }
 
         elapsed = round(time.monotonic() - started_at, 2)
         return {
@@ -110,6 +128,7 @@ def analyze_repo(
                     "languages": dict(languages_seen),
                     "analysis_time_s": elapsed,
                 },
+                "ai_summary": ai_summary,
             },
             "nodes": [node.to_dict() for node in nodes.values()],
             "links": [link.to_dict() for link in links],
