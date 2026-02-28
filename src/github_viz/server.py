@@ -209,9 +209,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="No path found between the given nodes")
         return {"source": source, "target": target, "path": path, "hops": len(path) - 1}
 
-    try:
-        app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
-    except Exception:
+    import os
+    # Resolve frontend/dist relative to this file's location (src/github_viz/server.py)
+    # 1. src/github_viz -> 2. src -> 3. root
+    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    frontend_dist = os.path.join(root_dir, "frontend", "dist")
+
+    if os.path.exists(frontend_dist):
+        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="static")
+    else:
         @app.get("/", response_class=HTMLResponse)
         def fallback_ui():
             """Serve lightweight fallback UI if the built frontend is missing."""
@@ -227,7 +233,7 @@ def _fallback_html() -> str:
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>CodeGraph 3D</title>
+    <title>Agentic Code Graph</title>
     <style>
       body { margin: 0; font-family: Arial, sans-serif; background: #05060a; color: #f2f4f8; }
       #app { display: grid; grid-template-columns: 320px 1fr; height: 100vh; }
@@ -244,7 +250,7 @@ def _fallback_html() -> str:
   <body>
     <div id="app">
       <div id="sidebar">
-        <h2>CodeGraph 3D</h2>
+        <h2>Agentic Code Graph</h2>
         <div class="muted">No build found. Using fallback UI.</div>
         <label>GitHub URL</label>
         <input id="repoUrl" placeholder="https://github.com/user/repo" />
