@@ -1,6 +1,6 @@
-# CodeGraph 3D
+# CodeGraph
 
-CodeGraph 3D analyzes repositories and renders a navigable graph of files, classes, and functions with optional GitHub and AI enrichment.
+CodeGraph analyzes repositories and renders a navigable graph of files, classes, and functions with optional GitHub and AI enrichment.
 
 ## Features
 
